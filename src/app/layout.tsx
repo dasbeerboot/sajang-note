@@ -1,9 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import ThemeToggle from "@/components/ThemeToggle";
-import Link from "next/link";
 import { AuthProvider } from "@/contexts/AuthContext";
-import AuthStatus from "@/components/AuthStatus";
+import Header from "@/components/Header";
 
 export const metadata: Metadata = {
   title: "사장노트 - 마케팅 콘텐츠 자동 생성",
@@ -27,15 +25,7 @@ export default function RootLayout({
       </head>
       <body className="antialiased font-sans">
         <AuthProvider>
-          <header className="text-white p-4" style={{ background: 'linear-gradient(to right, rgba(50, 56, 251, 0.8) 70%, rgba(240, 90, 100, 0.7) 100%)' }}>
-            <div className="container mx-auto flex justify-between items-center">
-              <Link href="/" className="text-xl font-bold">사장노트</Link>
-              <div className="flex items-center gap-4">
-                <AuthStatus />
-                <ThemeToggle />
-              </div>
-            </div>
-          </header>
+          <Header />
           
           <div className="min-h-screen bg-base-100">
             {children}
@@ -43,7 +33,7 @@ export default function RootLayout({
           
           <footer className="bg-base-200 py-4 text-center">
             <div className="container mx-auto">
-              <p className="text-sm text-gray-500">© 2024 사장노트. 모든 권리 보유.</p>
+              <p className="text-sm text-gray-500">© 2025 프로젝트 원제로. All rights reserved..</p>
             </div>
           </footer>
         </AuthProvider>

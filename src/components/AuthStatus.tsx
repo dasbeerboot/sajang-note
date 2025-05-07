@@ -32,7 +32,7 @@ export default function AuthStatus() {
             </div>
           )}
         </label>
-        <ul tabIndex={0} className="menu menu-compact dropdown-content mt-3 p-2 shadow bg-base-100 rounded-box w-52">
+        <ul tabIndex={0} className="menu menu-compact dropdown-content mt-3 p-2 shadow-lg bg-base-100 rounded-box w-52 text-base-content">
           <li>
             <a className="justify-between">
               프로필
@@ -47,7 +47,7 @@ export default function AuthStatus() {
   }
 
   return (
-    <Link href="/login" className="btn btn-sm btn-outline border-white text-white hover:bg-white hover:text-primary">
+    <Link href="/login" className="btn btn-sm btn-outline text-primary-content border-primary-content hover:bg-primary-content hover:text-primary">
       로그인
     </Link>
   );
