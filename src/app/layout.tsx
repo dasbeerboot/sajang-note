@@ -30,7 +30,7 @@ export default function RootLayout({
           
           <div className="min-h-screen bg-base-100">
             {children}
-          </div>
+        </div>
           
           <Footer />
         </AuthProvider>

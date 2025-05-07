@@ -1,4 +1,4 @@
-# 사장노트 MVP 프로젝트 기획서 (v0.2)
+# 사장노트 MVP 프로젝트 기획서 (v0.3)
 
 ## 1. 프로젝트 개요
 - **목적**: 자영업자 대상 '네이버 플레이스 기반 마케팅 콘텐츠 자동 생성' 서비스 MVP를 구축한다.
@@ -35,6 +35,10 @@
    - 파워링크 문구
    - 플레이스 문구
    - 쓰레드 포스팅
+4. **회원가입 & 인증**
+   - 이메일 회원가입
+   - 휴대폰 인증 (SMS 인증번호)
+   - 사용자 상태 관리 (인증 완료 여부)
 5. **마이크로인터랙션**
    - Input focus: border-color `#00E0FF` + box‑shadow `rgba(0,224,255,.25)`
    - CTA hover: translate‑y -2px, scale 1.03, shadow‑xl `rgba(255,92,222,0.4)`
@@ -133,10 +137,10 @@
 | Backend | **Supabase Edge Function** (TypeScript) | 폼 제출 Logging & DB Insert |
 | API 통합 | **Firecrawl API** | 네이버 플레이스 정보 수집 |
 | AI 생성 | **OpenAI API** 또는 **Gemini API** | 수집된 정보를 바탕으로 마케팅 콘텐츠 생성 |
-| Auth | **Supabase Auth** (TypeScript) | 구글/카카오 로그인, 추가 정보(이름, 전화번호) 입력 |
+| Auth | **Supabase Auth** (TypeScript) | 이메일 회원가입, 휴대폰 SMS 인증 |
 | **Google Sheets 연동** | **Google Sheets API v4** (Service Account) | leads 데이터를 `Leads` 시트에 실시간 Append |
 | DB | Supabase PostgreSQL | 사용자 정보, 생성된 콘텐츠 저장 |
-| Messaging | **카카오 알림톡 (Solapi)** | 콘텐츠 생성 완료 알림 발송 |
+| Messaging | **카카오 알림톡 (Solapi)** | 콘텐츠 생성 완료 알림 및 SMS 인증번호 발송 |
 | Analytics | Vercel Web Analytics + Mixpanel | 사용자 행동 및 전환 측정 |
 | Deploy | **Vercel** | 배포 및 환경 관리 |
 
@@ -163,6 +167,15 @@ CREATE TABLE generated_contents (
   thread_post     text,                 -- 쓰레드 포스팅
   created_at      timestamp DEFAULT now()
 );
+
+CREATE TABLE verification_codes (
+  id              uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+  phone           text NOT NULL,
+  code            text NOT NULL,
+  used            boolean DEFAULT false,
+  expires_at      timestamp NOT NULL,
+  created_at      timestamp DEFAULT now()
+);
 ```
 
 ## 8. 작동 흐름
@@ -173,10 +186,15 @@ CREATE TABLE generated_contents (
    - 각 플랫폼별 최적화된 마케팅 콘텐츠 생성 요청
 4. **결과 표시**: 생성된 콘텐츠를 사용자에게 표시
 5. **사용자 정보 수집**: 베타 신청 모달을 통해 연락처 정보 수집
+6. **회원가입 & 인증 흐름**:
+   - 이메일 회원가입 (이름, 이메일, 비밀번호, 휴대폰번호 입력)
+   - SMS 인증번호 발송
+   - 인증번호 확인 및 계정 활성화
 
 ## 9. 개인정보·법적 준수
 - 개인정보보호법 14조 동의 체크박스 추가
 - 광고성 정보 수신 동의 문구 분리
+- SMS 인증번호 발송 시 개인정보 수집 동의 확인
 
 ## 10. 일정 (D+0 기준)
 
@@ -185,6 +203,7 @@ CREATE TABLE generated_contents (
 | D+0 | 기획서 확정, API 연동 계획 수립 | PO |
 | D+3 | UI 개발 완료 | FE |
 | D+5 | Firecrawl API 연동 | BE |
+| D+6 | 회원가입 & SMS 인증 기능 구현 | BE |
 | D+7 | OpenAI/Gemini API 연동 및 프롬프트 최적화 | BE/AI |
 | D+9 | QA / 모바일 반응형 | 전원 |
 | D+10 | 배포 & 인하우스 테스트 | FE/BE |
@@ -196,3 +215,4 @@ CREATE TABLE generated_contents (
 - 추가 마케팅 채널 지원 (인스타그램, 블로그 등)
 - 사용자 피드백 기반 AI 모델 학습 및 개선
 - 유료 구독 모델 설계 및 결제 시스템 구축
+- 소셜 로그인 (카카오, 구글) 추가

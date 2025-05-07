@@ -19,6 +19,8 @@ CREATE TABLE profiles (
   email TEXT NOT NULL,
   full_name TEXT,
   phone TEXT,
+  phone_verified BOOLEAN DEFAULT FALSE,
+  user_status TEXT DEFAULT 'pending' NOT NULL, -- 'pending', 'active', 'suspended'
   created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
   subscription_tier TEXT DEFAULT 'basic' NOT NULL,
@@ -115,6 +117,21 @@ CREATE TABLE place_change_logs (
 );
 ```
 
+### 7. verification_codes 테이블
+
+휴대폰 인증을 위한 인증번호를 저장하는 테이블입니다.
+
+```sql
+CREATE TABLE verification_codes (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  phone TEXT NOT NULL,
+  code TEXT NOT NULL,
+  used BOOLEAN DEFAULT FALSE,
+  expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL
+);
+```
+
 ## 인덱스
 
 ```sql
@@ -131,6 +148,10 @@ CREATE INDEX idx_contents_place_id ON contents(place_id);
 -- 구독 관리를 위한 인덱스
 CREATE INDEX idx_subscriptions_user_id ON subscriptions(user_id);
 CREATE INDEX idx_subscriptions_end_date ON subscriptions(end_date);
+
+-- 인증번호 조회를 위한 인덱스
+CREATE INDEX idx_verification_codes_phone ON verification_codes(phone);
+CREATE INDEX idx_verification_codes_expires_at ON verification_codes(expires_at);
 ```
 
 ## RLS(Row Level Security) 정책
@@ -150,7 +171,9 @@ CREATE POLICY "사용자는 자신의 플레이스만 추가할 수 있음" ON p
 CREATE POLICY "사용자는 자신의 플레이스만 수정할 수 있음" ON places FOR UPDATE USING (auth.uid() = user_id);
 CREATE POLICY "사용자는 자신의 플레이스만 삭제할 수 있음" ON places FOR DELETE USING (auth.uid() = user_id);
 
--- 나머지 테이블에도 유사한 RLS 정책을 적용
+-- verification_codes 테이블 RLS
+ALTER TABLE verification_codes ENABLE ROW LEVEL SECURITY;
+-- 인증 코드는 서비스 계정에서만 접근 가능하도록 제한
 ```
 
 ## 트리거
@@ -183,6 +206,22 @@ CREATE TRIGGER enforce_place_limit
 BEFORE INSERT ON places
 FOR EACH ROW
 EXECUTE FUNCTION check_place_limit();
+
+-- 휴대폰 인증 완료 시 사용자 상태 업데이트
+CREATE FUNCTION update_user_status_on_verification() RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.phone_verified = TRUE AND OLD.phone_verified = FALSE THEN
+    NEW.user_status := 'active';
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER update_user_status_on_phone_verification
+BEFORE UPDATE ON profiles
+FOR EACH ROW
+WHEN (NEW.phone_verified <> OLD.phone_verified)
+EXECUTE FUNCTION update_user_status_on_verification();
 ```
 
 ## 함수
@@ -207,6 +246,17 @@ BEGIN
   RETURN now() >= next_change_date;
 END;
 $$ LANGUAGE plpgsql;
+
+-- 휴대폰 인증 상태 확인 함수
+CREATE OR REPLACE FUNCTION is_phone_verified(user_uuid UUID)
+RETURNS BOOLEAN AS $$
+DECLARE
+  is_verified BOOLEAN;
+BEGIN
+  SELECT phone_verified INTO is_verified FROM profiles WHERE id = user_uuid;
+  RETURN COALESCE(is_verified, FALSE);
+END;
+$$ LANGUAGE plpgsql;
 ```
 
 ## 고려사항 및 추가 질문
@@ -216,3 +266,5 @@ $$ LANGUAGE plpgsql;
 3. 플레이스 변경 제한(14일에 한 번)을 어떻게 UI에서 표현할 계획인가요?
 4. 사용자가 요금제를 변경하면 플레이스 수 제한은 어떻게 처리할 계획인가요?
 5. 콘텐츠 생성 기록과 버전 관리는 어떻게 할 계획인가요? 
+6. 휴대폰 인증이 실패할 경우 재시도 정책은 어떻게 할 계획인가요?
+7. SMS 인증번호 발송 서비스는 어떤 것을 사용할 계획인가요? (Solapi, Twilio 등) 

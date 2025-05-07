@@ -37,7 +37,7 @@ export default function FeatureSection() {
           {/* 모든 플랫폼 지원 */}
           <FeatureCard 
             title="모든 플랫폼 지원"
-            description="당근, 파워링크부터 쓰레드까지 모든 마케팅 채널에 최적화된 콘텐츠 자동 생성"
+            description="당근, 파워링크부터 인스타, 쓰레드까지 모든 마케팅 채널에 최적화된 콘텐츠 자동 생성"
             icon={
               <ShareNetwork size={48} weight="duotone" className="text-primary" />
             }
