@@ -12,7 +12,7 @@ export default function PrivacyPolicy() {
       
       <div className="prose max-w-none">
         <p className="mb-4">
-          <strong>프로젝트 원제로</strong>(이하 "회사")는 사용자의 개인정보를 중요시하며, 「정보통신망 이용촉진 및 정보보호 등에 관한 법률」, 「개인정보 보호법」 등 관련 법령을 준수하고 있습니다.
+          <strong>프로젝트 원제로</strong>(이하 &ldquo;회사&rdquo;)는 사용자의 개인정보를 중요시하며, 「정보통신망 이용촉진 및 정보보호 등에 관한 법률」, 「개인정보 보호법」 등 관련 법령을 준수하고 있습니다.
         </p>
         
         <h2 className="text-xl font-semibold mt-6 mb-3">1. 수집하는 개인정보 항목</h2>
@@ -69,7 +69,7 @@ export default function PrivacyPolicy() {
         
         <h2 className="text-xl font-semibold mt-6 mb-3">7. 개인정보 자동수집 장치의 설치, 운영 및 그 거부에 관한 사항</h2>
         <p>
-          회사는 이용자의 정보를 수시로 저장하고 찾아내는 '쿠키(cookie)' 등을 운용합니다. 쿠키란 웹사이트를 운영하는데 이용되는 서버가 이용자의 브라우저에 보내는 아주 작은 텍스트 파일로서 이용자의 컴퓨터 하드디스크에 저장됩니다.
+          회사는 이용자의 정보를 수시로 저장하고 찾아내는 &lsquo;쿠키(cookie)&rsquo; 등을 운용합니다. 쿠키란 웹사이트를 운영하는데 이용되는 서버가 이용자의 브라우저에 보내는 아주 작은 텍스트 파일로서 이용자의 컴퓨터 하드디스크에 저장됩니다.
           회사는 다음과 같은 목적을 위해 쿠키를 사용합니다:
         </p>
         <ul className="list-disc pl-6 mb-4">
