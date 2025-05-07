@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
 import Header from "@/components/Header";
+import Footer from "@/components/Footer";
 
 export const metadata: Metadata = {
   title: "사장노트 - 마케팅 콘텐츠 자동 생성",
@@ -31,11 +32,7 @@ export default function RootLayout({
             {children}
           </div>
           
-          <footer className="bg-base-200 py-4 text-center">
-            <div className="container mx-auto">
-              <p className="text-sm text-gray-500">© 2025 프로젝트 원제로. All rights reserved..</p>
-            </div>
-          </footer>
+          <Footer />
         </AuthProvider>
       </body>
     </html>
