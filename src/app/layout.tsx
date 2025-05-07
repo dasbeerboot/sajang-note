@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import ThemeToggle from "@/components/ThemeToggle";
+import Link from "next/link";
+import { AuthProvider } from "@/contexts/AuthContext";
+import AuthStatus from "@/components/AuthStatus";
 
 export const metadata: Metadata = {
-  title: "사장노트 - 네이버 플레이스 1분 진단",
-  description: "네이버 플레이스 순위, 1분 진단. 키워드 5개·경쟁사 5곳까지 무료 분석",
+  title: "사장노트 - 마케팅 콘텐츠 자동 생성",
+  description: "플레이스 URL 하나로 당근, 파워링크, 쓰레드까지 모든 마케팅 콘텐츠 자동 생성",
 };
 
 export default function RootLayout({
@@ -23,23 +26,27 @@ export default function RootLayout({
         />
       </head>
       <body className="antialiased font-sans">
-        <header className="bg-gradient-to-r from-primary from-50% to-secondary to-100% text-white p-3">
-        {/* <header className="bg-primary text-white p-4"> */}
-          <div className="container mx-auto flex justify-between items-center">
-            <div className="text-xl font-bold">사장노트</div>
-            <ThemeToggle />
+        <AuthProvider>
+          <header className="text-white p-4" style={{ background: 'linear-gradient(to right, rgba(50, 56, 251, 0.8) 70%, rgba(240, 90, 100, 0.7) 100%)' }}>
+            <div className="container mx-auto flex justify-between items-center">
+              <Link href="/" className="text-xl font-bold">사장노트</Link>
+              <div className="flex items-center gap-4">
+                <AuthStatus />
+                <ThemeToggle />
+              </div>
+            </div>
+          </header>
+          
+          <div className="min-h-screen bg-base-100">
+            {children}
           </div>
-        </header>
-        
-        <div className="min-h-screen bg-base-100">
-          {children}
-        </div>
-        
-        <footer className="bg-base-200 py-4 text-center">
-          <div className="container mx-auto">
-            <p className="text-sm text-gray-500">© 2025 프로젝트 원제로. All rights reserved.</p>
-          </div>
-        </footer>
+          
+          <footer className="bg-base-200 py-4 text-center">
+            <div className="container mx-auto">
+              <p className="text-sm text-gray-500">© 2024 사장노트. 모든 권리 보유.</p>
+            </div>
+          </footer>
+        </AuthProvider>
       </body>
     </html>
   );
