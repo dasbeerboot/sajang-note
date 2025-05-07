@@ -18,7 +18,7 @@ export default function Home() {
     threadPost: string;
   } | null>(null);
 
-  const handleSearchSubmit = async (url: string) => {
+  const handleSearchSubmit = async () => {
     // 로그인 상태 확인
     if (!user) {
       // 로그인되지 않은 경우 로그인 모달 표시

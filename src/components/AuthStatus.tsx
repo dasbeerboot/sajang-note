@@ -2,6 +2,7 @@
 
 import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
+import Image from 'next/image';
 import { User } from '@phosphor-icons/react';
 
 export default function AuthStatus() {
@@ -17,7 +18,13 @@ export default function AuthStatus() {
         <label tabIndex={0} className="btn btn-sm btn-ghost btn-circle avatar">
           {user.user_metadata?.avatar_url ? (
             <div className="w-8 rounded-full">
-              <img src={user.user_metadata.avatar_url} alt="프로필" />
+              <Image 
+                src={user.user_metadata.avatar_url} 
+                alt="프로필" 
+                width={32} 
+                height={32}
+                className="rounded-full"
+              />
             </div>
           ) : (
             <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">

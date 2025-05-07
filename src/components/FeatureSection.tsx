@@ -1,5 +1,5 @@
 import FeatureCard from './FeatureCard';
-import { MapPin, Gauge, Robot, MagnifyingGlass, ShareNetwork } from '@phosphor-icons/react';
+import { Gauge, Robot, MagnifyingGlass, ShareNetwork } from '@phosphor-icons/react';
 
 export default function FeatureSection() {
   return (

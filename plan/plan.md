@@ -35,10 +35,6 @@
    - 파워링크 문구
    - 플레이스 문구
    - 쓰레드 포스팅
-4. **베타 신청 모달**
-   - 이름, 연락처, 이메일 입력 필드
-   - 개인정보 수집 동의 체크박스
-   - '알림 신청' 버튼 → **① Supabase leads 테이블 INSERT & ② Google Sheets 'Leads' 시트 Append**
 5. **마이크로인터랙션**
    - Input focus: border-color `#00E0FF` + box‑shadow `rgba(0,224,255,.25)`
    - CTA hover: translate‑y -2px, scale 1.03, shadow‑xl `rgba(255,92,222,0.4)`
