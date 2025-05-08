@@ -1,65 +1,78 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createServerClient } from '@supabase/ssr';
+import { cookies } from 'next/headers';
 
 export async function POST(request: Request) {
   try {
-    const { phone, code } = await request.json();
-
-    if (!phone || !code) {
-      return NextResponse.json(
-        { message: '전화번호와 인증번호가 필요합니다.' },
-        { status: 400 }
-      );
+    const cookieStore = cookies();
+    
+    // Next.js 14 이상에서는 await 없이 직접 사용
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get(name: string) {
+            return cookieStore.get(name)?.value;
+          },
+          set(name: string, value: string, options: any) {
+            cookieStore.set({ name, value, ...options });
+          },
+          remove(name: string, options: any) {
+            cookieStore.delete({ name, ...options });
+          },
+        },
+      }
+    );
+    
+    // 현재 로그인한 사용자 확인
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      return NextResponse.json({ error: '인증이 필요합니다.' }, { status: 401 });
     }
-
-    // Supabase 클라이언트 초기화
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    // 인증 코드 확인
-    const { data, error } = await supabase
+    
+    const { phone, code } = await request.json();
+    
+    if (!phone || !code) {
+      return NextResponse.json({ error: '전화번호와 인증번호를 모두 입력해주세요.' }, { status: 400 });
+    }
+    
+    // 유효한 인증번호 조회
+    const now = new Date().toISOString();
+    const { data: verificationData, error: verificationError } = await supabase
       .from('verification_codes')
       .select('*')
       .eq('phone', phone)
       .eq('code', code)
-      .gt('expires_at', new Date().toISOString())
+      .eq('used', false)
+      .gte('expires_at', now)
       .order('created_at', { ascending: false })
       .limit(1)
       .single();
-
-    if (error || !data) {
-      return NextResponse.json(
-        { message: '유효하지 않은 인증번호이거나 만료되었습니다.' },
-        { status: 400 }
-      );
+    
+    if (verificationError || !verificationData) {
+      return NextResponse.json({ error: '유효하지 않거나 만료된 인증번호입니다.' }, { status: 400 });
     }
-
-    // 인증 코드 사용 처리
+    
+    // 인증번호 사용 처리
     await supabase
       .from('verification_codes')
       .update({ used: true })
-      .eq('id', data.id);
-
-    // 사용자 프로필 업데이트 - 전화번호 인증 상태 변경
-    const { data: userData, error: userError } = await supabase
+      .eq('id', verificationData.id);
+    
+    // 사용자 프로필에 전화번호 정보 업데이트
+    // 실제 phone_verified는 프로필 설정 완료 시 업데이트
+    await supabase
       .from('profiles')
-      .update({ phone_verified: true })
-      .eq('phone', phone);
-
-    if (userError) {
-      console.error('사용자 프로필 업데이트 오류:', userError);
-    }
-
-    return NextResponse.json(
-      { message: '인증이 완료되었습니다.' },
-      { status: 200 }
-    );
+      .update({ 
+        phone: phone,
+        updated_at: now
+      })
+      .eq('id', session.user.id);
+    
+    return NextResponse.json({ success: true });
   } catch (error) {
     console.error('인증번호 확인 오류:', error);
-    return NextResponse.json(
-      { message: '서버 오류가 발생했습니다.' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: '서버 오류가 발생했습니다.' }, { status: 500 });
   }
 } 

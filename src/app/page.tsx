@@ -2,12 +2,14 @@
 
 import { useRef, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useRouter } from 'next/navigation';
 import SearchForm from '@/components/SearchForm';
 import FeatureSection from '@/components/FeatureSection';
 import LoginModal from '@/components/LoginModal';
 
 export default function Home() {
-  const { user } = useAuth();
+  const { user, isProfileComplete } = useAuth();
+  const router = useRouter();
   const loginModalRef = useRef<HTMLDialogElement | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedContent, setGeneratedContent] = useState<{
@@ -26,7 +28,14 @@ export default function Home() {
       return;
     }
     
-    // 로그인된 경우 콘텐츠 생성 진행
+    // 프로필 설정 완료 여부 확인
+    if (!isProfileComplete) {
+      // 프로필 설정이 완료되지 않은 경우 프로필 설정 페이지로 리다이렉트
+      router.push('/profile/setup');
+      return;
+    }
+    
+    // 로그인되고 프로필 설정이 완료된 경우 콘텐츠 생성 진행
     setIsGenerating(true);
     
     // 생성 시간을 시뮬레이션하기 위한 타임아웃
