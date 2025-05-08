@@ -1,6 +1,15 @@
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import { createClient } from '@supabase/supabase-js';
+
+// 서비스 롤 키를 사용하는 Supabase 클라이언트 생성
+function createServiceClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+}
 
 export async function POST(request: Request) {
   try {
@@ -13,7 +22,7 @@ export async function POST(request: Request) {
     }
     
     // 쿠키 스토어 가져오기
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     
     // Supabase 클라이언트 생성
     const supabase = createServerClient(
@@ -22,9 +31,7 @@ export async function POST(request: Request) {
       {
         cookies: {
           get(name: string) {
-            // 비동기 처리 없이 직접 값을 반환
-            const cookie = cookieStore.get(name);
-            return cookie?.value;
+            return cookieStore.get(name)?.value;
           },
           set(name: string, value: string, options: Record<string, unknown>) {
             cookieStore.set({ name, value, ...options });
@@ -47,9 +54,12 @@ export async function POST(request: Request) {
       userId = session.user.id;
     }
     
-    // 유효한 인증번호 조회
+    // 인증번호 확인
     const now = new Date().toISOString();
-    const { data: verificationData, error: verificationError } = await supabase
+    
+    // 서비스 롤 클라이언트를 사용하여 인증번호 확인
+    const serviceClient = createServiceClient();
+    const { data: verificationCode, error: verifyError } = await serviceClient
       .from('verification_codes')
       .select('*')
       .eq('phone', phone)
@@ -60,15 +70,15 @@ export async function POST(request: Request) {
       .limit(1)
       .single();
     
-    if (verificationError || !verificationData) {
-      return NextResponse.json({ error: '유효하지 않거나 만료된 인증번호입니다.' }, { status: 400 });
+    if (verifyError || !verificationCode) {
+      return NextResponse.json({ error: '유효하지 않은 인증번호입니다.' }, { status: 400 });
     }
     
     // 인증번호 사용 처리
-    await supabase
+    await serviceClient
       .from('verification_codes')
       .update({ used: true })
-      .eq('id', verificationData.id);
+      .eq('id', verificationCode.id);
     
     // 회원가입이 아닌 경우에만 사용자 프로필 업데이트
     if (!isSignup && userId) {

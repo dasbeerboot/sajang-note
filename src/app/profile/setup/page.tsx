@@ -89,7 +89,7 @@ export default function ProfileSetupPage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ phone: phone.replace(/-/g, '') }),
+        body: JSON.stringify({ phone: phone.replace(/-/g, ''), isSignup: true }),
       });
       
       const data = await response.json();
@@ -125,7 +125,8 @@ export default function ProfileSetupPage() {
         },
         body: JSON.stringify({ 
           phone: phone.replace(/-/g, ''),
-          code: verificationCode 
+          code: verificationCode,
+          isSignup: true
         }),
       });
       
@@ -191,7 +192,6 @@ export default function ProfileSetupPage() {
       <div className="w-full max-w-md space-y-8 bg-base-200 p-8 rounded-lg shadow-lg">
         <div>
           <h1 className="text-3xl font-bold text-center">사장노트</h1>
-          <h2 className="mt-6 text-center text-2xl font-bold">프로필 설정</h2>
           <p className="mt-2 text-center text-sm">
             서비스 이용을 위해 이름과 전화번호를 입력해주세요.
           </p>
