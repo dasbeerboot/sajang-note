@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Session, User } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
@@ -21,6 +21,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [isProfileComplete, setIsProfileComplete] = useState(false);
   const router = useRouter();
+  
+  // 사용자 프로필 상태 확인 (useCallback으로 메모이제이션)
+  const checkProfileStatus = useCallback(async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('phone_verified, full_name')
+        .eq('id', userId)
+        .single();
+      
+      if (error) {
+        console.error('프로필 정보 가져오기 오류:', error);
+        return;
+      }
+      
+      const isComplete = !!(data && data.phone_verified && data.full_name);
+      setIsProfileComplete(isComplete);
+      
+      // 현재 URL이 /profile/setup이 아니고, 프로필이 완료되지 않았으면 리다이렉트
+      const isSetupPage = window.location.pathname === '/profile/setup';
+      if (!isComplete && !isSetupPage) {
+        router.push('/profile/setup');
+      }
+    } catch (error) {
+      console.error('프로필 상태 확인 오류:', error);
+    }
+  }, [router]);
 
   useEffect(() => {
     // 초기 세션 상태 가져오기
@@ -62,34 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       subscription.unsubscribe();
     };
-  }, [router]);
-  
-  // 사용자 프로필 상태 확인
-  const checkProfileStatus = async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('phone_verified, full_name')
-        .eq('id', userId)
-        .single();
-      
-      if (error) {
-        console.error('프로필 정보 가져오기 오류:', error);
-        return;
-      }
-      
-      const isComplete = !!(data && data.phone_verified && data.full_name);
-      setIsProfileComplete(isComplete);
-      
-      // 현재 URL이 /profile/setup이 아니고, 프로필이 완료되지 않았으면 리다이렉트
-      const isSetupPage = window.location.pathname === '/profile/setup';
-      if (!isComplete && !isSetupPage) {
-        router.push('/profile/setup');
-      }
-    } catch (error) {
-      console.error('프로필 상태 확인 오류:', error);
-    }
-  };
+  }, [router, checkProfileStatus]);
 
   const signOut = async () => {
     try {

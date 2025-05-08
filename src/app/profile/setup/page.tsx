@@ -23,7 +23,7 @@ export default function ProfileSetupPage() {
     const checkProfileStatus = async () => {
       if (!authLoading && user) {
         // 프로필 정보 가져오기
-        const { data, error } = await supabase
+        const { data } = await supabase
           .from('profiles')
           .select('phone_verified, full_name')
           .eq('id', user.id)
@@ -100,8 +100,9 @@ export default function ProfileSetupPage() {
       
       setCodeSent(true);
       setCountdown(180); // 3분 타이머
-    } catch (error: any) {
-      setError(error.message || '인증번호 발송 중 오류가 발생했습니다.');
+    } catch (error: Error | unknown) {
+      const errorMessage = error instanceof Error ? error.message : '인증번호 발송 중 오류가 발생했습니다.';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -135,8 +136,9 @@ export default function ProfileSetupPage() {
       }
       
       setVerified(true);
-    } catch (error: any) {
-      setError(error.message || '인증번호 확인 중 오류가 발생했습니다.');
+    } catch (error: Error | unknown) {
+      const errorMessage = error instanceof Error ? error.message : '인증번호 확인 중 오류가 발생했습니다.';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -154,7 +156,7 @@ export default function ProfileSetupPage() {
     setError(null);
     
     try {
-      const { error } = await supabase
+      const { error: updateError } = await supabase
         .from('profiles')
         .update({ 
           full_name: fullName,
@@ -164,12 +166,13 @@ export default function ProfileSetupPage() {
         })
         .eq('id', user?.id);
       
-      if (error) throw error;
+      if (updateError) throw updateError;
       
       // 프로필 설정 완료 후 홈으로 이동
       router.push('/');
-    } catch (error: any) {
-      setError(error.message || '프로필 저장 중 오류가 발생했습니다.');
+    } catch (error: Error | unknown) {
+      const errorMessage = error instanceof Error ? error.message : '프로필 저장 중 오류가 발생했습니다.';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

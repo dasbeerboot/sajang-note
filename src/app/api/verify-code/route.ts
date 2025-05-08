@@ -4,37 +4,47 @@ import { cookies } from 'next/headers';
 
 export async function POST(request: Request) {
   try {
+    // 요청 데이터 파싱
+    const requestData = await request.json();
+    const { phone, code, isSignup = false } = requestData;
+    
+    if (!phone || !code) {
+      return NextResponse.json({ error: '전화번호와 인증번호를 모두 입력해주세요.' }, { status: 400 });
+    }
+    
+    // 쿠키 스토어 가져오기
     const cookieStore = cookies();
     
-    // Next.js 14 이상에서는 await 없이 직접 사용
+    // Supabase 클라이언트 생성
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
         cookies: {
           get(name: string) {
-            return cookieStore.get(name)?.value;
+            // 비동기 처리 없이 직접 값을 반환
+            const cookie = cookieStore.get(name);
+            return cookie?.value;
           },
-          set(name: string, value: string, options: any) {
+          set(name: string, value: string, options: Record<string, unknown>) {
             cookieStore.set({ name, value, ...options });
           },
-          remove(name: string, options: any) {
+          remove(name: string, options: Record<string, unknown>) {
             cookieStore.delete({ name, ...options });
           },
         },
       }
     );
     
-    // 현재 로그인한 사용자 확인
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      return NextResponse.json({ error: '인증이 필요합니다.' }, { status: 401 });
-    }
-    
-    const { phone, code } = await request.json();
-    
-    if (!phone || !code) {
-      return NextResponse.json({ error: '전화번호와 인증번호를 모두 입력해주세요.' }, { status: 400 });
+    // 회원가입이 아닌 경우에만 인증 확인
+    let userId = null;
+    if (!isSignup) {
+      // 현재 로그인한 사용자 확인
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        return NextResponse.json({ error: '인증이 필요합니다.' }, { status: 401 });
+      }
+      userId = session.user.id;
     }
     
     // 유효한 인증번호 조회
@@ -60,15 +70,18 @@ export async function POST(request: Request) {
       .update({ used: true })
       .eq('id', verificationData.id);
     
-    // 사용자 프로필에 전화번호 정보 업데이트
-    // 실제 phone_verified는 프로필 설정 완료 시 업데이트
-    await supabase
-      .from('profiles')
-      .update({ 
-        phone: phone,
-        updated_at: now
-      })
-      .eq('id', session.user.id);
+    // 회원가입이 아닌 경우에만 사용자 프로필 업데이트
+    if (!isSignup && userId) {
+      // 사용자 프로필에 전화번호 정보 업데이트
+      // 실제 phone_verified는 프로필 설정 완료 시 업데이트
+      await supabase
+        .from('profiles')
+        .update({ 
+          phone: phone,
+          updated_at: now
+        })
+        .eq('id', userId);
+    }
     
     return NextResponse.json({ success: true });
   } catch (error) {

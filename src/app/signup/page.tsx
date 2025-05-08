@@ -24,7 +24,7 @@ export default function SignupPage() {
     
     try {
       // 회원가입 처리
-      const { data, error } = await supabase.auth.signUp({
+      const { error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -40,8 +40,9 @@ export default function SignupPage() {
       
       // 회원가입 성공 후 인증 단계로 이동
       setStep(2);
-    } catch (error: any) {
-      setError(error.message || '회원가입 중 오류가 발생했습니다.');
+    } catch (error: Error | unknown) {
+      const errorMessage = error instanceof Error ? error.message : '회원가입 중 오류가 발생했습니다.';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -55,7 +56,7 @@ export default function SignupPage() {
       const response = await fetch('/api/send-verification', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone })
+        body: JSON.stringify({ phone, isSignup: true })
       });
       
       const data = await response.json();
@@ -65,8 +66,9 @@ export default function SignupPage() {
       }
       
       setCodeSent(true);
-    } catch (error: any) {
-      setError(error.message);
+    } catch (error: Error | unknown) {
+      const errorMessage = error instanceof Error ? error.message : '인증번호 발송 중 오류가 발생했습니다.';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -81,7 +83,7 @@ export default function SignupPage() {
       const response = await fetch('/api/verify-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone, code: verificationCode })
+        body: JSON.stringify({ phone, code: verificationCode, isSignup: true })
       });
       
       const data = await response.json();
@@ -92,8 +94,9 @@ export default function SignupPage() {
       
       // 인증 성공 시 로그인 페이지로 이동
       router.push('/login?verified=true');
-    } catch (error: any) {
-      setError(error.message);
+    } catch (error: Error | unknown) {
+      const errorMessage = error instanceof Error ? error.message : '인증번호 확인 중 오류가 발생했습니다.';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

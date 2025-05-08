@@ -20,6 +20,35 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## 환경 변수 설정
+
+프로젝트 루트에 `.env.local` 파일을 생성하고 다음 환경 변수를 설정합니다:
+
+```bash
+# 솔라피 API 키
+SOLAPI_API_KEY=YOUR_SOLAPI_API_KEY
+SOLAPI_API_SECRET=YOUR_SOLAPI_API_SECRET
+
+# 솔라피 발신번호 (실제 등록된 발신번호)
+SOLAPI_SENDER_NUMBER=01012345678
+
+# Supabase 설정
+NEXT_PUBLIC_SUPABASE_URL=YOUR_SUPABASE_URL
+NEXT_PUBLIC_SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
+```
+
+## 솔라피 알림톡 설정
+
+본 프로젝트는 휴대폰 인증을 위해 솔라피 알림톡 API를 사용합니다. 다음 정보가 설정되어 있습니다:
+
+- pfId: KA01PF2504110309591075HUSei4iarb
+- templateId: KA01TP250430143738849XalNf3Jco1v
+
+알림톡 템플릿은 다음과 같은 형식으로 설정되어야 합니다:
+```
+⚠️[사장노트] 인증번호는 [#{인증번호}]입니다. 3분 이내에 입력해주세요.
+```
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

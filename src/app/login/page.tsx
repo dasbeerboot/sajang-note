@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 import { GoogleLogo, Envelope } from '@phosphor-icons/react';
 
-export default function LoginPage() {
+// 검색 파라미터를 처리하는 컴포넌트
+function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const verified = searchParams.get('verified');
@@ -31,7 +32,7 @@ export default function LoginPage() {
     setError(null);
     
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
@@ -40,8 +41,9 @@ export default function LoginPage() {
       
       // 로그인 성공 시 홈페이지로 이동
       router.push('/');
-    } catch (error: any) {
-      setError(error.message || '로그인 중 오류가 발생했습니다.');
+    } catch (error: Error | unknown) {
+      const errorMessage = error instanceof Error ? error.message : '로그인 중 오류가 발생했습니다.';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -66,8 +68,9 @@ export default function LoginPage() {
       
       if (error) throw error;
       setEmailSent(true);
-    } catch (error: any) {
-      setError(error.message || '로그인 링크 전송 중 오류가 발생했습니다.');
+    } catch (error: Error | unknown) {
+      const errorMessage = error instanceof Error ? error.message : '로그인 링크 전송 중 오류가 발생했습니다.';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -84,8 +87,9 @@ export default function LoginPage() {
       });
       
       if (error) throw error;
-    } catch (error: any) {
-      setError(error.message || '로그인 중 오류가 발생했습니다.');
+    } catch (error: Error | unknown) {
+      const errorMessage = error instanceof Error ? error.message : '로그인 중 오류가 발생했습니다.';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -102,8 +106,9 @@ export default function LoginPage() {
       });
       
       if (error) throw error;
-    } catch (error: any) {
-      setError(error.message || '로그인 중 오류가 발생했습니다.');
+    } catch (error: Error | unknown) {
+      const errorMessage = error instanceof Error ? error.message : '로그인 중 오류가 발생했습니다.';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -284,5 +289,18 @@ export default function LoginPage() {
         )}
       </div>
     </div>
+  );
+}
+
+// 메인 로그인 페이지 컴포넌트
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="loading loading-spinner loading-lg"></div>
+      </div>
+    }>
+      <LoginContent />
+    </Suspense>
   );
 } 

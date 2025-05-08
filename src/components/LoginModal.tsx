@@ -3,7 +3,6 @@
 import { RefObject, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { GoogleLogo, Envelope } from '@phosphor-icons/react';
 
 interface LoginModalProps {
@@ -12,7 +11,6 @@ interface LoginModalProps {
 }
 
 export default function LoginModal({ modalId, modalRef }: LoginModalProps) {
-  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -26,7 +24,7 @@ export default function LoginModal({ modalId, modalRef }: LoginModalProps) {
     setError(null);
     
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
@@ -35,8 +33,9 @@ export default function LoginModal({ modalId, modalRef }: LoginModalProps) {
       
       // 로그인 성공 시 모달 닫기
       modalRef?.current?.close();
-    } catch (error: any) {
-      setError(error.message || '로그인 중 오류가 발생했습니다.');
+    } catch (error: Error | unknown) {
+      const errorMessage = error instanceof Error ? error.message : '로그인 중 오류가 발생했습니다.';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -61,8 +60,9 @@ export default function LoginModal({ modalId, modalRef }: LoginModalProps) {
       
       if (error) throw error;
       setEmailSent(true);
-    } catch (error: any) {
-      setError(error.message || '로그인 링크 전송 중 오류가 발생했습니다.');
+    } catch (error: Error | unknown) {
+      const errorMessage = error instanceof Error ? error.message : '로그인 링크 전송 중 오류가 발생했습니다.';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -79,8 +79,9 @@ export default function LoginModal({ modalId, modalRef }: LoginModalProps) {
       });
       
       if (error) throw error;
-    } catch (error: any) {
-      setError(error.message || '로그인 중 오류가 발생했습니다.');
+    } catch (error: Error | unknown) {
+      const errorMessage = error instanceof Error ? error.message : '로그인 중 오류가 발생했습니다.';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -97,8 +98,9 @@ export default function LoginModal({ modalId, modalRef }: LoginModalProps) {
       });
       
       if (error) throw error;
-    } catch (error: any) {
-      setError(error.message || '로그인 중 오류가 발생했습니다.');
+    } catch (error: Error | unknown) {
+      const errorMessage = error instanceof Error ? error.message : '로그인 중 오류가 발생했습니다.';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
