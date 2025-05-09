@@ -49,7 +49,7 @@ async function sendSMS(phone: string, code: string): Promise<boolean> {
     };
     
     // 솔라피 알림톡 API 호출
-    const response = await axios.post('https://api.solapi.com/messages/v4/send', kakaoMessage, { headers });
+    await axios.post('https://api.solapi.com/messages/v4/send', kakaoMessage, { headers });
     
     return true;
   } catch (error) {
@@ -90,7 +90,7 @@ async function sendSMS(phone: string, code: string): Promise<boolean> {
       };
       
       // SMS API 호출
-      const smsResponse = await axios.post('https://api.solapi.com/messages/v4/send', smsMessage, { headers });
+      await axios.post('https://api.solapi.com/messages/v4/send', smsMessage, { headers });
       return true;
     } catch (smsError) {
       console.error('SMS 대체 발송 오류:', smsError);
