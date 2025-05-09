@@ -16,11 +16,11 @@ export default function AuthStatus() {
     return (
       <div className="dropdown dropdown-end">
         <label tabIndex={0} className="btn btn-sm btn-ghost btn-circle avatar">
-          {user.user_metadata?.avatar_url ? (
+          {user.user_metadata.avatar_url ? (
             <div className="w-8 rounded-full">
               <Image 
                 src={user.user_metadata.avatar_url} 
-                alt="프로필" 
+                alt="" 
                 width={32} 
                 height={32}
                 className="rounded-full"
