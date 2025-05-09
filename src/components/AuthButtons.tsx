@@ -1,9 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { supabase } from '@/lib/supabase';
-import { GoogleLogo, Envelope } from '@phosphor-icons/react';
 import { FormEvent } from 'react';
+import { GoogleLogo, Envelope } from '@phosphor-icons/react';
+import { signInWithOtp, signInWithGoogle, signInWithKakao } from '@/lib/auth';
 
 export default function AuthButtons() {
   const [loading, setLoading] = useState(false);
@@ -14,12 +14,7 @@ export default function AuthButtons() {
   const handleGoogleLogin = async () => {
     try {
       setLoading(true);
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
-        },
-      });
+      const { error } = await signInWithGoogle();
       
       if (error) throw error;
     } catch (error) {
@@ -33,12 +28,7 @@ export default function AuthButtons() {
   const handleKakaoLogin = async () => {
     try {
       setLoading(true);
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'kakao',
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
-        },
-      });
+      const { error } = await signInWithKakao();
       
       if (error) throw error;
     } catch (error) {
@@ -58,12 +48,7 @@ export default function AuthButtons() {
 
     try {
       setLoading(true);
-      const { error } = await supabase.auth.signInWithOtp({
-        email,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-        }
-      });
+      const { error } = await signInWithOtp(email);
       
       if (error) throw error;
       setEmailSent(true);

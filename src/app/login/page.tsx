@@ -2,9 +2,9 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 import { GoogleLogo, Envelope } from '@phosphor-icons/react';
+import { signInWithPassword, signInWithOtp, signInWithGoogle, signInWithKakao } from '@/lib/auth';
 
 // 검색 파라미터를 처리하는 컴포넌트
 function LoginContent() {
@@ -32,10 +32,7 @@ function LoginContent() {
     setError(null);
     
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      const { error } = await signInWithPassword(email, password);
       
       if (error) throw error;
       
@@ -59,12 +56,7 @@ function LoginContent() {
     try {
       setLoading(true);
       setError(null);
-      const { error } = await supabase.auth.signInWithOtp({
-        email,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-        }
-      });
+      const { error } = await signInWithOtp(email);
       
       if (error) throw error;
       setEmailSent(true);
@@ -79,12 +71,7 @@ function LoginContent() {
   const handleGoogleLogin = async () => {
     try {
       setLoading(true);
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
-        },
-      });
+      const { error } = await signInWithGoogle();
       
       if (error) throw error;
     } catch (error: Error | unknown) {
@@ -98,12 +85,7 @@ function LoginContent() {
   const handleKakaoLogin = async () => {
     try {
       setLoading(true);
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'kakao',
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
-        },
-      });
+      const { error } = await signInWithKakao();
       
       if (error) throw error;
     } catch (error: Error | unknown) {

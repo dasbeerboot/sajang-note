@@ -1,9 +1,9 @@
 'use client';
 
 import { RefObject, useState } from 'react';
-import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 import { GoogleLogo, Envelope } from '@phosphor-icons/react';
+import { signInWithPassword, signInWithOtp, signInWithGoogle, signInWithKakao } from '@/lib/auth';
 
 interface LoginModalProps {
   modalId: string;
@@ -24,10 +24,7 @@ export default function LoginModal({ modalId, modalRef }: LoginModalProps) {
     setError(null);
     
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      const { error } = await signInWithPassword(email, password);
       
       if (error) throw error;
       
@@ -51,12 +48,7 @@ export default function LoginModal({ modalId, modalRef }: LoginModalProps) {
     try {
       setLoading(true);
       setError(null);
-      const { error } = await supabase.auth.signInWithOtp({
-        email,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-        }
-      });
+      const { error } = await signInWithOtp(email);
       
       if (error) throw error;
       setEmailSent(true);
@@ -71,12 +63,7 @@ export default function LoginModal({ modalId, modalRef }: LoginModalProps) {
   const handleGoogleLogin = async () => {
     try {
       setLoading(true);
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
-        },
-      });
+      const { error } = await signInWithGoogle();
       
       if (error) throw error;
     } catch (error: Error | unknown) {
@@ -90,12 +77,7 @@ export default function LoginModal({ modalId, modalRef }: LoginModalProps) {
   const handleKakaoLogin = async () => {
     try {
       setLoading(true);
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'kakao',
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
-        },
-      });
+      const { error } = await signInWithKakao();
       
       if (error) throw error;
     } catch (error: Error | unknown) {
