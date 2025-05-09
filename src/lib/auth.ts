@@ -47,8 +47,7 @@ export const signInWithGoogle = async () => {
  * 필요한 스코프를 queryParams로 전달합니다.
  */
 export const signInWithKakao = async () => {
-  console.log('카카오 로그인 시도...');
-  
+
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'kakao',
     options: {

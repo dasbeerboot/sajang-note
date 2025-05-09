@@ -37,9 +37,7 @@ async function sendSMS(phone: string, code: string): Promise<boolean> {
           pfId: process.env.KAKAO_PFID,
           templateId: process.env.KAKAO_VERIFICATION_TEMPLATE_ID,
           variables: {
-            "#{날짜}": `사장노트 인증번호는 ${code}입니다. 3분 이내에 입력해주세요.`,
-            "#{미팅이름}": '테스트',
-            "#{url}": 'sajang-note.vercel.app/'
+            "#{code}": `${code}`,
           }
         }
       }
