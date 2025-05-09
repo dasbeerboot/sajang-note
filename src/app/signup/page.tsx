@@ -4,9 +4,11 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
+import { useToast } from '@/contexts/ToastContext';
 
 export default function SignupPage() {
   const router = useRouter();
+  const { showToast } = useToast();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [phone, setPhone] = useState('');
@@ -92,8 +94,9 @@ export default function SignupPage() {
         throw new Error(data.message || '인증번호 확인에 실패했습니다.');
       }
       
-      // 인증 성공 시 로그인 페이지로 이동
-      router.push('/login?verified=true');
+      // 인증 성공 시 토스트 메시지 표시 후 홈으로 이동
+      showToast('휴대폰 인증이 완료되었습니다.', 'success');
+      router.push('/');
     } catch (error: Error | unknown) {
       const errorMessage = error instanceof Error ? error.message : '인증번호 확인 중 오류가 발생했습니다.';
       setError(errorMessage);

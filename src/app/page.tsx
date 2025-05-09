@@ -96,7 +96,7 @@ export default function Home() {
                 </div>
                 
                 <div className="card bg-base-100 border border-base-300">
-                  <div className="card-body">
+                <div className="card-body">
                     <h3 className="card-title flex items-center">
                       <span className="badge badge-primary mr-2">내용</span>
                     </h3>
@@ -130,12 +130,12 @@ export default function Home() {
               
               {/* 쓰레드 포스팅 */}
               <div className="card bg-base-100 border border-base-300">
-                <div className="card-body">
+            <div className="card-body">
                   <h3 className="card-title flex items-center">
                     <span className="badge badge-primary mr-2">쓰레드 포스팅</span>
                   </h3>
                   <p className="whitespace-pre-line">{generatedContent.threadPost}</p>
-                </div>
+              </div>
               </div>
             </div>
           </div>

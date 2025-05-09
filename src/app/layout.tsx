@@ -1,38 +1,36 @@
-import type { Metadata } from "next";
-import "./globals.css";
-import { AuthProvider } from "@/contexts/AuthContext";
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
+import './globals.css';
+import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
+import { AuthProvider } from '@/contexts/AuthContext';
+import { ToastProvider } from '@/contexts/ToastContext';
+import Header from '@/components/Header';
+import Footer from '@/components/Footer';
+
+const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: "사장노트 - 마케팅 콘텐츠 자동 생성",
-  description: "플레이스 URL 하나로 당근, 파워링크, 쓰레드까지 모든 마케팅 콘텐츠 자동 생성",
+  title: '사장노트 - AI 마케팅 도우미',
+  description: '당근마켓, 네이버 플레이스, 쓰레드 등 자영업자를 위한 AI 마케팅 도우미',
 };
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
-    <html lang="ko" suppressHydrationWarning>
-      <head>
-        <link
-          rel="stylesheet"
-          as="style"
-          crossOrigin="anonymous"
-          href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css"
-        />
-      </head>
-      <body className="antialiased font-sans">
+    <html lang="ko" data-theme="light">
+      <body className={inter.className}>
         <AuthProvider>
-          <Header />
-          
-          <div className="min-h-screen bg-base-100">
-            {children}
-        </div>
-          
-          <Footer />
+          <ToastProvider>
+            <div className="flex flex-col min-h-screen">
+              <Header />
+              <main className="flex-1">
+                {children}
+              </main>
+              <Footer />
+            </div>
+          </ToastProvider>
         </AuthProvider>
       </body>
     </html>

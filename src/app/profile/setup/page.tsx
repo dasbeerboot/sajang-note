@@ -4,10 +4,12 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
+import { useToast } from '@/contexts/ToastContext';
 
 export default function ProfileSetupPage() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
+  const { showToast } = useToast();
   
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
@@ -136,27 +138,7 @@ export default function ProfileSetupPage() {
         throw new Error(data.error || '인증번호 확인에 실패했습니다.');
       }
       
-      setVerified(true);
-    } catch (error: Error | unknown) {
-      const errorMessage = error instanceof Error ? error.message : '인증번호 확인 중 오류가 발생했습니다.';
-      setError(errorMessage);
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!verified) {
-      setError('전화번호 인증을 완료해주세요.');
-      return;
-    }
-    
-    setLoading(true);
-    setError(null);
-    
-    try {
+      // 인증 성공 시 프로필 정보 업데이트
       const { error: updateError } = await supabase
         .from('profiles')
         .update({ 
@@ -169,10 +151,13 @@ export default function ProfileSetupPage() {
       
       if (updateError) throw updateError;
       
-      // 프로필 설정 완료 후 홈으로 이동
+      setVerified(true);
+      showToast('휴대폰 인증이 완료되었습니다.', 'success');
+      
+      // 인증 완료 후 자동으로 홈으로 이동
       router.push('/');
     } catch (error: Error | unknown) {
-      const errorMessage = error instanceof Error ? error.message : '프로필 저장 중 오류가 발생했습니다.';
+      const errorMessage = error instanceof Error ? error.message : '인증번호 확인 중 오류가 발생했습니다.';
       setError(errorMessage);
     } finally {
       setLoading(false);
@@ -203,7 +188,7 @@ export default function ProfileSetupPage() {
           </div>
         )}
         
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="space-y-6">
           <div>
             <label htmlFor="fullName" className="block text-sm font-medium">
               이름
@@ -294,17 +279,7 @@ export default function ProfileSetupPage() {
               휴대폰 인증이 완료되었습니다.
             </div>
           )}
-          
-          <div>
-            <button
-              type="submit"
-              className="btn btn-primary w-full"
-              disabled={loading || !verified}
-            >
-              {loading ? <span className="loading loading-spinner loading-xs"></span> : '완료'}
-            </button>
-          </div>
-        </form>
+        </div>
       </div>
     </div>
   );
