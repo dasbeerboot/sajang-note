@@ -44,16 +44,24 @@ export const signInWithGoogle = async () => {
 
 /**
  * Kakao OAuth로 로그인합니다.
- * 필요한 스코프를 명시적으로 지정합니다.
+ * 필요한 스코프를 queryParams로 전달합니다.
  */
 export const signInWithKakao = async () => {
+  console.log('카카오 로그인 시도...');
+  
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'kakao',
     options: {
       redirectTo: `${window.location.origin}/auth/callback`,
-      scopes: 'profile_nickname profile_image account_email name phone_number',
+      queryParams: {
+        scope: 'profile_nickname,profile_image,account_email,name,phone_number'
+      }
     },
   });
+  
+  if (error) {
+    console.error('카카오 로그인 오류:', error);
+  }
   
   return { data, error };
 };
