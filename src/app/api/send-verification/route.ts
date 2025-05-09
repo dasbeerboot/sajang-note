@@ -25,30 +25,32 @@ async function sendSMS(phone: string, code: string): Promise<boolean> {
       .update(hmacData)
       .digest('hex');
     
-    // 솔라피 알림톡 API 호출
-    const messageContent = `#{날짜}: 사장노트 인증번호는 ${code}입니다. 3분 이내에 입력해주세요.\n#{미팅이름}: '테스트'\n#{url}: 'sajang-note.vercel.app/'`
-    const response = await axios.post('https://api.solapi.com/messages/v4/send', {
+    // 알림톡 메시지 설정
+    const kakaoMessage = {
       message: {
         to: phone,
         from: senderNumber,
-        text: messageContent,
+        text: `[사장노트] 인증번호는 ${code}입니다.`,
         type: 'ATA', // 알림톡 타입
         kakaoOptions: {
           pfId: process.env.KAKAO_PFID,
           templateId: process.env.KAKAO_VERIFICATION_TEMPLATE_ID,
           variables: {
-            "#{code}": `${code}`,
-          }
+            "#{code}": code
+          },
+          disableSms: false // SMS 대체 발송 활성화
         }
       }
-    }, {
-      headers: {
-        'Authorization': `HMAC-SHA256 apiKey=${process.env.SOLAPI_API_KEY}, date=${date}, salt=${salt}, signature=${signature}`,
-        'Content-Type': 'application/json'
-      }
-    });
+    };
     
-    console.log('솔라피 응답:', response.data);
+    const headers = {
+      'Authorization': `HMAC-SHA256 apiKey=${process.env.SOLAPI_API_KEY}, date=${date}, salt=${salt}, signature=${signature}`,
+      'Content-Type': 'application/json'
+    };
+    
+    // 솔라피 알림톡 API 호출
+    const response = await axios.post('https://api.solapi.com/messages/v4/send', kakaoMessage, { headers });
+    
     return true;
   } catch (error) {
     console.error('솔라피 API 호출 오류:', error);
@@ -59,13 +61,48 @@ async function sendSMS(phone: string, code: string): Promise<boolean> {
       console.error('응답 데이터:', error.response.data);
     }
     
-    // 개발 환경에서는 실패해도 성공으로 처리 (테스트 목적)
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`[개발 모드] 인증번호: ${phone}로 인증번호 ${code} 발송 (API 오류 무시)`);
+    // SMS 대체 발송 요청
+    try {
+      // 발신번호 (환경 변수에서 가져오거나 기본값 사용)
+      const senderNumber = process.env.SOLAPI_SENDER_NUMBER || '01012345678';
+      
+      // 인증 헤더 생성
+      const date = new Date().toISOString();
+      const salt = crypto.randomBytes(32).toString('hex');
+      const hmacData = date + salt;
+      const signature = crypto.createHmac('sha256', process.env.SOLAPI_API_SECRET || '')
+        .update(hmacData)
+        .digest('hex');
+      
+      // SMS 메시지 설정
+      const smsMessage = {
+        message: {
+          to: phone,
+          from: senderNumber,
+          text: `[사장노트] 인증번호는 ${code}입니다.`,
+          type: 'SMS'
+        }
+      };
+      
+      const headers = {
+        'Authorization': `HMAC-SHA256 apiKey=${process.env.SOLAPI_API_KEY}, date=${date}, salt=${salt}, signature=${signature}`,
+        'Content-Type': 'application/json'
+      };
+      
+      // SMS API 호출
+      const smsResponse = await axios.post('https://api.solapi.com/messages/v4/send', smsMessage, { headers });
       return true;
+    } catch (smsError) {
+      console.error('SMS 대체 발송 오류:', smsError);
+      
+      // 개발 환경에서는 실패해도 성공으로 처리 (테스트 목적)
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[개발 모드] 인증번호: ${phone}로 인증번호 ${code} 발송 (API 오류 무시)`);
+        return true;
+      }
+      
+      return false;
     }
-    
-    return false;
   }
 }
 
@@ -131,28 +168,39 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: '유효한 전화번호 형식이 아닙니다.' }, { status: 400 });
     }
     
-    // 회원가입이 아닌 경우에만 이미 인증된 전화번호인지 확인
-    if (!isSignup && userId) {
-      const { data: existingProfile } = await supabase
-        .from('profiles')
-        .select('phone, phone_verified')
-        .eq('phone', phone)
-        .eq('phone_verified', true)
-        .neq('id', userId)
-        .maybeSingle();
-      
-      if (existingProfile) {
-        return NextResponse.json({ error: '이미 사용 중인 전화번호입니다.' }, { status: 400 });
-      }
+    // 전화번호 중복 확인 - 회원가입일 때와 아닐 때를 구분하여 처리
+    // 서비스 롤 클라이언트를 사용하여 전화번호 조회 (권한 문제 방지)
+    const serviceClient = createServiceClient();
+    const { data: existingPhone, error: phoneCheckError } = await serviceClient
+      .from('profiles')
+      .select('id, phone_verified')
+      .eq('phone', phone)
+      .eq('phone_verified', true)
+      .maybeSingle();
+    
+    if (phoneCheckError) {
+      console.error('전화번호 중복 확인 오류:', phoneCheckError);
+      return NextResponse.json({ error: '전화번호 확인 중 오류가 발생했습니다.' }, { status: 500 });
+    }
+    
+    // 회원가입 시: 이미 인증된 번호가 있으면 에러
+    if (isSignup && existingPhone) {
+      return NextResponse.json({ error: '이미 사용 중인 전화번호입니다.' }, { status: 400 });
+    }
+    
+    // 회원가입이 아닐 때: 다른 사용자가 인증한 번호라면 에러
+    if (!isSignup && userId && existingPhone && existingPhone.id !== userId) {
+      return NextResponse.json({ error: '이미 다른 계정에서 사용 중인 전화번호입니다.' }, { status: 400 });
     }
     
     // 3분 내에 발송 요청이 3회 이상인지 확인
     const threeMinutesAgo = new Date(Date.now() - 3 * 60 * 1000).toISOString();
-    const { data: recentCodes, error: countError } = await supabase
+    const { data: recentCodes, error: countError } = await serviceClient
       .from('verification_codes')
-      .select('id')
+      .select('id, created_at')
       .eq('phone', phone)
-      .gte('created_at', threeMinutesAgo);
+      .gte('created_at', threeMinutesAgo)
+      .order('created_at', { ascending: false });
     
     if (countError) {
       console.error('인증번호 조회 오류:', countError);
@@ -163,6 +211,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: '너무 많은 인증번호 요청이 있었습니다. 잠시 후 다시 시도해주세요.' }, { status: 429 });
     }
     
+    // 마지막 요청 후 60초 내에 재요청 제한
+    if (recentCodes && recentCodes.length > 0) {
+      const lastRequestTime = new Date(recentCodes[0].created_at).getTime();
+      const now = Date.now();
+      const timeSinceLastRequest = now - lastRequestTime;
+      
+      if (timeSinceLastRequest < 60 * 1000) { // 60초(1분) 제한
+        const remainingSeconds = Math.ceil((60 * 1000 - timeSinceLastRequest) / 1000);
+        return NextResponse.json({ 
+          error: `인증번호를 재요청하기까지 ${remainingSeconds}초 기다려주세요.` 
+        }, { status: 429 });
+      }
+    }
+    
     // 인증번호 생성
     const code = generateVerificationCode();
     
@@ -170,14 +232,13 @@ export async function POST(request: Request) {
     const expiresAt = new Date(Date.now() + 3 * 60 * 1000).toISOString();
     
     // 기존 인증번호 만료 처리
-    await supabase
+    await serviceClient
       .from('verification_codes')
       .update({ used: true })
       .eq('phone', phone)
       .eq('used', false);
     
-    // 서비스 롤 클라이언트를 사용하여 새 인증번호 저장
-    const serviceClient = createServiceClient();
+    // 새 인증번호 저장
     const { error: insertError } = await serviceClient
       .from('verification_codes')
       .insert({

@@ -17,7 +17,6 @@ export default function ProfileSetupPage() {
   const [loading, setLoading] = useState(false);
   const [codeSent, setCodeSent] = useState(false);
   const [verified, setVerified] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [countdown, setCountdown] = useState(0);
   
   // 이미 인증된 사용자는 홈으로 리다이렉트
@@ -78,12 +77,11 @@ export default function ProfileSetupPage() {
     // 전화번호 유효성 검사
     const phoneRegex = /^01([0|1|6|7|8|9])-?([0-9]{3,4})-?([0-9]{4})$/;
     if (!phoneRegex.test(phone)) {
-      setError('유효한 전화번호를 입력해주세요.');
+      showToast('유효한 전화번호를 입력해주세요.', 'error');
       return;
     }
     
     setLoading(true);
-    setError(null);
     
     try {
       const response = await fetch('/api/send-verification', {
@@ -102,9 +100,10 @@ export default function ProfileSetupPage() {
       
       setCodeSent(true);
       setCountdown(180); // 3분 타이머
+      showToast('인증번호가 발송되었습니다.', 'success');
     } catch (error: Error | unknown) {
       const errorMessage = error instanceof Error ? error.message : '인증번호 발송 중 오류가 발생했습니다.';
-      setError(errorMessage);
+      showToast(errorMessage, 'error');
     } finally {
       setLoading(false);
     }
@@ -112,12 +111,11 @@ export default function ProfileSetupPage() {
   
   const handleVerifyCode = async () => {
     if (verificationCode.length !== 6) {
-      setError('6자리 인증번호를 입력해주세요.');
+      showToast('6자리 인증번호를 입력해주세요.', 'error');
       return;
     }
     
     setLoading(true);
-    setError(null);
     
     try {
       const response = await fetch('/api/verify-code', {
@@ -158,7 +156,7 @@ export default function ProfileSetupPage() {
       router.push('/');
     } catch (error: Error | unknown) {
       const errorMessage = error instanceof Error ? error.message : '인증번호 확인 중 오류가 발생했습니다.';
-      setError(errorMessage);
+      showToast(errorMessage, 'error');
     } finally {
       setLoading(false);
     }
@@ -181,12 +179,6 @@ export default function ProfileSetupPage() {
             서비스 이용을 위해 이름과 전화번호를 입력해주세요.
           </p>
         </div>
-        
-        {error && (
-          <div className="bg-error/10 text-error p-3 rounded-lg">
-            {error}
-          </div>
-        )}
         
         <div className="space-y-6">
           <div>

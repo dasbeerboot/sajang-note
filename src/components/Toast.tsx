@@ -27,18 +27,26 @@ export default function Toast({
   }, [duration, onClose]);
 
   // 토스트 타입에 따른 스타일 클래스
-  const alertClass = {
-    info: 'alert-info',
-    success: 'alert-success',
-    warning: 'alert-warning',
-    error: 'alert-error'
-  }[type];
+  const getTypeStyle = () => {
+    switch (type) {
+      case 'success':
+        return 'bg-[#dcfce7] text-[#166534]';
+      case 'error':
+        return 'bg-[#fee2e2] text-[#b91c1c]';
+      case 'info':
+        return 'bg-[#e0f2fe] text-[#0369a1]';
+      case 'warning':
+        return 'bg-[#fef3c7] text-[#92400e]';
+      default:
+        return 'bg-[#dcfce7] text-[#166534]';
+    }
+  };
 
   if (!visible) return null;
 
   return (
-    <div className="toast toast-top toast-center z-50">
-      <div className={`alert ${alertClass}`}>
+    <div className="toast toast-bottom toast-center z-50">
+      <div className={`px-6 py-3 rounded-lg text-sm shadow-md ${getTypeStyle()}`}>
         <span>{message}</span>
       </div>
     </div>

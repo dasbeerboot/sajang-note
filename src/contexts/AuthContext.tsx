@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useState, ReactNode, useCallback 
 import { supabase } from '@/lib/supabase';
 import { Session, User } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
+import { useToast } from './ToastContext';
 
 type AuthContextType = {
   session: Session | null;
@@ -21,6 +22,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [isProfileComplete, setIsProfileComplete] = useState(false);
   const router = useRouter();
+  const { showToast } = useToast();
   
   // 사용자 프로필 상태 확인 (useCallback으로 메모이제이션)
   const checkProfileStatus = useCallback(async (userId: string) => {
@@ -93,10 +95,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     try {
-      await supabase.auth.signOut();
+      // 로그아웃 처리
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) {
+        throw error;
+      }
+      
+      // 상태 초기화
+      setUser(null);
+      setSession(null);
+      setIsProfileComplete(false);
+      
+      // 토스트 메시지 표시
+      showToast('로그아웃 되었습니다.', 'success');
+      
+      // 홈 페이지로 이동
       router.push('/');
+      
+      // 페이지 강제 새로고침으로 모든 상태 초기화
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 100);
     } catch (error) {
       console.error('로그아웃 오류:', error);
+      showToast('로그아웃 중 오류가 발생했습니다.', 'error');
     }
   };
 
