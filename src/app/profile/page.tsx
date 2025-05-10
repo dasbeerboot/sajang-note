@@ -28,7 +28,6 @@ export default function ProfilePage() {
   
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
-  const [showSubscribeModal, setShowSubscribeModal] = useState(false);
   
   // 프로필 데이터 로드
   useEffect(() => {
@@ -120,6 +119,11 @@ export default function ProfilePage() {
       showToast(error.message || '구독 취소 중 오류가 발생했습니다.', 'error');
     }
   };
+
+  // 구독 페이지로 이동
+  const handleSubscribe = () => {
+    router.push('/subscription/checkout');
+  };
   
   if (loading || loadingProfile) {
     return (
@@ -130,13 +134,18 @@ export default function ProfilePage() {
   }
   
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold mb-8">내 프로필</h1>
-        
-        {/* 프로필 정보 */}
-        <div className="bg-base-200 rounded-lg p-6 mb-8 shadow-md">
-          <div className="flex items-center mb-6">
+    <div className="container mx-auto px-4 py-8 max-w-5xl">
+      <h1 className="text-3xl font-bold mb-8">내 프로필</h1>
+      
+      {/* 프로필 정보 */}
+      <div className="card bg-base-100 shadow-md mb-8">
+        <div className="card-body">
+          <h2 className="card-title">
+            <User size={20} className="mr-2" />
+            기본 정보
+          </h2>
+          
+          <div className="flex items-center mt-2">
             {user?.user_metadata.avatar_url ? (
               <Image 
                 src={user.user_metadata.avatar_url} 
@@ -146,23 +155,23 @@ export default function ProfilePage() {
                 className="rounded-full mr-4"
               />
             ) : (
-              <div className="w-20 h-20 rounded-full bg-primary flex items-center justify-center mr-4">
-                <User size={40} weight="fill" className="text-white" />
+              <div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center mr-4">
+                <User size={32} weight="fill" className="text-white" />
               </div>
             )}
             <div>
-              <h2 className="text-2xl font-bold">{profileData?.full_name || user?.email}</h2>
+              <h3 className="text-xl font-bold">{profileData?.full_name || user?.email}</h3>
               <p className="text-sm opacity-70">{user?.email}</p>
               {profileData?.phone && (
                 <p className="text-sm mt-1 flex items-center">
                   {profileData.phone}
                   {profileData.phone_verified ? (
-                    <span className="ml-2 text-success flex items-center">
-                      <CheckCircle size={16} weight="fill" className="mr-1" /> 인증됨
+                    <span className="ml-2 text-success flex items-center text-xs">
+                      <CheckCircle size={14} weight="fill" className="mr-1" /> 인증됨
                     </span>
                   ) : (
-                    <span className="ml-2 text-error flex items-center">
-                      <XCircle size={16} weight="fill" className="mr-1" /> 미인증
+                    <span className="ml-2 text-error flex items-center text-xs">
+                      <XCircle size={14} weight="fill" className="mr-1" /> 미인증
                     </span>
                   )}
                 </p>
@@ -170,146 +179,81 @@ export default function ProfilePage() {
             </div>
           </div>
         </div>
-        
-        {/* 구독 정보 */}
-        <div className="bg-base-200 rounded-lg p-6 shadow-md">
-          <h2 className="text-xl font-bold mb-4 flex items-center">
-            <CreditCard size={24} className="mr-2" /> 구독 관리
+      </div>
+      
+      {/* 구독 정보 */}
+      <div className="card bg-base-100 shadow-md">
+        <div className="card-body">
+          <h2 className="card-title flex items-center">
+            <CreditCard size={20} className="mr-2" /> 
+            구독 관리
           </h2>
           
           {profileData?.subscription_status === 'active' ? (
-            <div>
-              <div className="flex items-center mb-4">
-                <div className="badge badge-success mr-2">활성</div>
-                <p>현재 {profileData.subscription_tier === 'premium' ? 'Pro' : 'Basic'} 구독 중입니다.</p>
+            <div className="py-2">
+              <div className="flex items-center justify-between border border-gray-300 p-3 rounded-lg mb-4">
+                <div className="flex items-center">
+                  <div className="flex flex-col">
+                    <div className="flex items-center">
+                      <span className="font-medium">{profileData.subscription_tier === 'premium' ? 'Pro' : 'Basic'} 플랜</span>
+                      <span className="text-xs ml-2 text-green-600">활성</span>
+                    </div>
+                    {profileData.subscription_end_date && (
+                      <span className="text-xs opacity-70 mt-1">
+                        다음 결제일: {new Date(profileData.subscription_end_date).toISOString().split('T')[0]}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <button 
+                  onClick={handleCancelSubscription}
+                  className="btn btn-outline btn-sm btn-error"
+                >
+                  구독 취소
+                </button>
               </div>
               
-              {profileData.subscription_end_date && (
-                <p className="mb-4">
-                  다음 결제일: {
-                    profileData.subscription_end_date ? 
-                    new Date(profileData.subscription_end_date).toISOString().split('T')[0] : 
-                    '없음'
-                  }
-                </p>
-              )}
-              
-              <button 
-                onClick={handleCancelSubscription}
-                className="btn btn-outline btn-error btn-sm"
-              >
-                구독 취소
-              </button>
+              <div className="text-sm opacity-70">
+                <p>구독을 취소하면 다음 결제일부터 구독이 해지됩니다. 취소 후에도 결제 기간 만료일까지는 서비스를 계속 이용할 수 있습니다.</p>
+              </div>
             </div>
           ) : profileData?.subscription_status === 'canceled' ? (
-            <div>
-              <div className="flex items-center mb-4">
-                <div className="badge badge-warning mr-2">취소됨</div>
-                <p>구독이 취소되었습니다.</p>
+            <div className="py-2">
+              <div className="flex items-center justify-between border border-gray-300 p-3 rounded-lg mb-4">
+                <div className="flex flex-col">
+                  <div className="flex items-center">
+                    <span className="font-medium">{profileData.subscription_tier === 'premium' ? 'Pro' : 'Basic'} 플랜</span>
+                    <span className="text-xs ml-2 text-yellow-600">취소됨</span>
+                  </div>
+                  {profileData.subscription_end_date && (
+                    <span className="text-xs opacity-70 mt-1">
+                      이용 기간: {new Date(profileData.subscription_end_date).toISOString().split('T')[0]}까지
+                    </span>
+                  )}
+                </div>
+                <button 
+                  onClick={handleSubscribe}
+                  className="btn btn-primary btn-sm"
+                >
+                  다시 구독하기
+                </button>
               </div>
-              
-              {profileData.subscription_end_date && (
-                <p className="mb-4">
-                  이용 기간: {new Date(profileData.subscription_end_date).toLocaleDateString()}까지
-                </p>
-              )}
-              
-              <button 
-                onClick={() => setShowSubscribeModal(true)}
-                className="btn btn-primary btn-sm"
-              >
-                다시 구독하기
-              </button>
             </div>
           ) : (
-            <div>
-              <p className="mb-4">아직 구독 중이 아닙니다. 프리미엄 기능을 이용하려면 구독해주세요.</p>
-              <button 
-                onClick={() => setShowSubscribeModal(true)}
-                className="btn btn-primary btn-sm"
-              >
-                구독하기
-              </button>
+            <div className="py-2">
+              <div className="p-4 border border-gray-300 rounded-lg bg-base-200 mb-4">
+                <p className="mb-3">아직 구독 중이 아닙니다. 프리미엄 기능을 이용하려면 구독해주세요.</p>
+                <button 
+                  onClick={handleSubscribe}
+                  className="btn btn-primary"
+                >
+                  구독하기
+                </button>
+              </div>
             </div>
           )}
         </div>
       </div>
-      
-      {/* 구독 모달 */}
-      {showSubscribeModal && (
-        <div className="fixed inset-0 bg-base-100 bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-base-100 rounded-lg p-6 max-w-md w-full">
-            <h3 className="text-xl font-bold mb-4">구독 플랜 선택</h3>
-            
-            <div className="space-y-4 mb-6">
-              <div className="border rounded-lg p-4 cursor-pointer hover:border-primary">
-                <div className="flex justify-between items-center mb-2">
-                  <h4 className="font-bold">Basic 플랜</h4>
-                  <div className="badge badge-primary">추천</div>
-                </div>
-                <p className="text-xl font-bold mb-2">5,900원 <span className="text-sm font-normal">/ 월</span></p>
-                <p className="text-sm mb-3 opacity-70">기본 기능 이용 가능</p>
-                <ul className="space-y-2">
-                  <li className="flex items-center">
-                    <CheckCircle size={16} weight="fill" className="text-success mr-2" />
-                    <span className="text-sm">거래처 관리</span>
-                  </li>
-                  <li className="flex items-center">
-                    <CheckCircle size={16} weight="fill" className="text-success mr-2" />
-                    <span className="text-sm">기본 통계 기능</span>
-                  </li>
-                  <li className="flex items-center">
-                    <CheckCircle size={16} weight="fill" className="text-success mr-2" />
-                    <span className="text-sm">알림 서비스</span>
-                  </li>
-                </ul>
-              </div>
-              
-              <div className="border rounded-lg p-4 cursor-pointer hover:border-primary bg-primary bg-opacity-5">
-                <div className="flex justify-between items-center mb-2">
-                  <h4 className="font-bold">Pro 플랜</h4>
-                  <div className="badge badge-secondary">프리미엄</div>
-                </div>
-                <p className="text-xl font-bold mb-2">9,900원 <span className="text-sm font-normal">/ 월</span></p>
-                <p className="text-sm mb-3 opacity-70">모든 프리미엄 기능 이용 가능</p>
-                <ul className="space-y-2">
-                  <li className="flex items-center">
-                    <CheckCircle size={16} weight="fill" className="text-success mr-2" />
-                    <span className="text-sm">무제한 거래처 관리</span>
-                  </li>
-                  <li className="flex items-center">
-                    <CheckCircle size={16} weight="fill" className="text-success mr-2" />
-                    <span className="text-sm">고급 통계 기능</span>
-                  </li>
-                  <li className="flex items-center">
-                    <CheckCircle size={16} weight="fill" className="text-success mr-2" />
-                    <span className="text-sm">자동 알림 서비스</span>
-                  </li>
-                  <li className="flex items-center">
-                    <CheckCircle size={16} weight="fill" className="text-success mr-2" />
-                    <span className="text-sm">우선 기술 지원</span>
-                  </li>
-                </ul>
-              </div>
-            </div>
-            
-            <div className="flex justify-between">
-              <button 
-                onClick={() => setShowSubscribeModal(false)}
-                className="btn btn-outline btn-sm"
-              >
-                취소
-              </button>
-              <button 
-                onClick={() => router.push('/subscription/checkout')}
-                className="btn btn-primary btn-sm"
-              >
-                결제하기
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 } 

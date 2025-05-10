@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { CreditCard, CheckCircle, XCircle } from '@phosphor-icons/react';
+import { CreditCard, CheckCircle, ArrowLeft } from '@phosphor-icons/react';
 
 interface SubscriptionPlan {
   id: string;
@@ -35,6 +35,7 @@ export default function CheckoutPage() {
   });
   
   const [hasRegisteredCard, setHasRegisteredCard] = useState(false);
+  const [isChangingCard, setIsChangingCard] = useState(false);
   const [cardDetails, setCardDetails] = useState<{card_name?: string, card_number?: string} | null>(null);
   
   // 구독 플랜 로드
@@ -81,9 +82,12 @@ export default function CheckoutPage() {
           
         if (error) throw error;
         
-        if (data?.billing_id) {
+        if (data?.billing_id && data?.card_info) {
           setHasRegisteredCard(true);
           setCardDetails(data.card_info);
+        } else {
+          setHasRegisteredCard(false);
+          setCardDetails(null);
         }
       } catch (error) {
         console.error('카드 정보 확인 오류:', error);
@@ -109,6 +113,18 @@ export default function CheckoutPage() {
       ...prev,
       [name]: value
     }));
+  };
+  
+  // 카드 변경 모드 시작
+  const handleStartChangingCard = () => {
+    setIsChangingCard(true);
+    setHasRegisteredCard(false);
+  };
+  
+  // 카드 변경 취소
+  const handleCancelChangingCard = () => {
+    setIsChangingCard(false);
+    setHasRegisteredCard(true);
   };
   
   // 카드 등록 처리
@@ -248,93 +264,100 @@ export default function CheckoutPage() {
   }
   
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold mb-8">구독 신청</h1>
+    <div className="container mx-auto px-4 py-8 max-w-5xl">
+      <div className="mb-6">
+        <button 
+          onClick={() => router.push('/profile')}
+          className="btn btn-ghost btn-sm gap-2"
+        >
+          <ArrowLeft size={16} />
+          뒤로가기
+        </button>
+      </div>
+      
+      <h1 className="text-3xl font-bold mb-8">구독 신청</h1>
+      
+      {/* 구독 플랜 선택 */}
+      <div className="mb-8">
+        <h2 className="text-xl font-bold mb-4">구독 플랜 선택</h2>
         
-        {/* 구독 플랜 선택 */}
-        <div className="bg-base-200 rounded-lg p-6 mb-8 shadow-md">
-          <h2 className="text-xl font-bold mb-4">구독 플랜 선택</h2>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {plans.map((plan) => (
-              <div 
-                key={plan.id}
-                className={`border rounded-lg p-4 cursor-pointer transition-all ${
-                  selectedPlan === plan.id 
-                    ? 'border-primary bg-primary bg-opacity-10' 
-                    : 'border-base-300 hover:border-primary'
-                }`}
-                onClick={() => setSelectedPlan(plan.id)}
-              >
-                <div className="flex justify-between items-center mb-2">
-                  <h3 className="font-bold text-lg">{plan.name}</h3>
-                  <div className="form-control">
-                    <input 
-                      type="radio" 
-                      name="plan" 
-                      className="radio radio-primary" 
-                      checked={selectedPlan === plan.id}
-                      onChange={() => setSelectedPlan(plan.id)}
-                    />
-                  </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {plans.map((plan) => (
+            <div 
+              key={plan.id}
+              className={`card bg-base-100 shadow-md hover:shadow-lg transition-all cursor-pointer ${
+                selectedPlan === plan.id ? 'border-2 border-primary' : 'border border-base-300'
+              }`}
+              onClick={() => setSelectedPlan(plan.id)}
+            >
+              <div className="card-body">
+                <div className="flex justify-between items-center">
+                  <h3 className="card-title">{plan.name}</h3>
+                  <input 
+                    type="radio" 
+                    name="plan" 
+                    className="radio radio-primary" 
+                    checked={selectedPlan === plan.id}
+                    onChange={() => setSelectedPlan(plan.id)}
+                  />
                 </div>
                 
-                <p className="text-2xl font-bold mb-2">
+                <div className="text-2xl font-bold mt-2 mb-3">
                   {plan.price.toLocaleString()}원
-                  <span className="text-sm font-normal ml-1">
+                  <span className="text-sm font-normal ml-1 opacity-70">
                     / {plan.interval === 'monthly' ? '월' : '년'}
                   </span>
-                </p>
+                </div>
                 
-                <p className="text-sm mb-3 opacity-70">{plan.description}</p>
+                <p className="text-sm opacity-70 mb-4">{plan.description || '기본 기능 이용 가능'}</p>
                 
-                <ul className="space-y-2">
+                <ul className="space-y-3">
                   {plan.features && plan.features.map((feature, index) => (
                     <li key={index} className="flex items-center">
-                      <CheckCircle size={16} weight="fill" className="text-success mr-2" />
+                      <CheckCircle size={16} weight="fill" className="text-success mr-2 flex-shrink-0" />
                       <span className="text-sm">{feature}</span>
                     </li>
                   ))}
                 </ul>
               </div>
-            ))}
-          </div>
+            </div>
+          ))}
         </div>
-        
-        {/* 카드 정보 입력 */}
-        <div className="bg-base-200 rounded-lg p-6 mb-8 shadow-md">
-          <h2 className="text-xl font-bold mb-4 flex items-center">
-            <CreditCard size={24} className="mr-2" /> 결제 정보
+      </div>
+      
+      {/* 결제 정보 */}
+      <div className="card bg-base-100 shadow-md mb-8">
+        <div className="card-body">
+          <h2 className="card-title flex items-center">
+            <CreditCard size={20} className="mr-2" /> 
+            결제 정보
           </h2>
           
           {hasRegisteredCard ? (
-            <div>
-              <div className="flex items-center mb-4">
-                <div className="badge badge-success mr-2">등록됨</div>
-                <p>카드가 등록되었습니다.</p>
-              </div>
-              
-              {cardDetails && (
-                <div className="p-4 border rounded-lg bg-base-100">
-                  <p className="font-bold">{cardDetails.card_name}</p>
-                  <p>{cardDetails.card_number}</p>
+            <div className="py-2">
+              <div className="flex items-center justify-between border border-gray-300 p-3 rounded-lg">
+                <div className="flex items-center gap-3">
+                  {cardDetails && (
+                    <div className="flex items-center">
+                      <CreditCard size={18} weight="fill" className="text-primary" />
+                      <span className="ml-2 font-medium">{cardDetails.card_name}</span>
+                      <span className="ml-2 text-sm opacity-70">{cardDetails.card_number}</span>
+                    </div>
+                  )}
+                  <span className="text-xs mt-1">등록완료</span>
                 </div>
-              )}
-              
-              <div className="mt-4">
                 <button 
-                  className="btn btn-sm btn-outline"
-                  onClick={() => setHasRegisteredCard(false)}
+                  className="btn btn-ghost btn-sm"
+                  onClick={handleStartChangingCard}
                 >
-                  다른 카드로 변경
+                  변경
                 </button>
               </div>
             </div>
           ) : (
-            <div>
+            <div className="py-2">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <div className="form-control">
+                <div className="form-control w-full">
                   <label className="label">
                     <span className="label-text">카드번호</span>
                   </label>
@@ -342,15 +365,15 @@ export default function CheckoutPage() {
                     type="text"
                     name="cardNo"
                     placeholder="카드번호 (숫자만 입력)"
-                    className="input input-bordered"
+                    className="input input-bordered w-full"
                     value={cardInfo.cardNo}
                     onChange={handleCardInputChange}
                     maxLength={16}
                   />
                 </div>
                 
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="form-control">
+                <div className="flex gap-4">
+                  <div className="form-control w-full">
                     <label className="label">
                       <span className="label-text">유효기간(년)</span>
                     </label>
@@ -358,14 +381,14 @@ export default function CheckoutPage() {
                       type="text"
                       name="expYear"
                       placeholder="YY"
-                      className="input input-bordered"
+                      className="input input-bordered w-full"
                       value={cardInfo.expYear}
                       onChange={handleCardInputChange}
                       maxLength={2}
                     />
                   </div>
                   
-                  <div className="form-control">
+                  <div className="form-control w-full">
                     <label className="label">
                       <span className="label-text">유효기간(월)</span>
                     </label>
@@ -373,7 +396,7 @@ export default function CheckoutPage() {
                       type="text"
                       name="expMonth"
                       placeholder="MM"
-                      className="input input-bordered"
+                      className="input input-bordered w-full"
                       value={cardInfo.expMonth}
                       onChange={handleCardInputChange}
                       maxLength={2}
@@ -383,7 +406,7 @@ export default function CheckoutPage() {
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                <div className="form-control">
+                <div className="form-control w-full">
                   <label className="label">
                     <span className="label-text">생년월일 또는 사업자번호</span>
                   </label>
@@ -391,14 +414,14 @@ export default function CheckoutPage() {
                     type="text"
                     name="idNo"
                     placeholder="생년월일(YYMMDD) 또는 사업자번호"
-                    className="input input-bordered"
+                    className="input input-bordered w-full"
                     value={cardInfo.idNo}
                     onChange={handleCardInputChange}
                     maxLength={10}
                   />
                 </div>
                 
-                <div className="form-control">
+                <div className="form-control w-full">
                   <label className="label">
                     <span className="label-text">카드 비밀번호 앞 2자리</span>
                   </label>
@@ -406,7 +429,7 @@ export default function CheckoutPage() {
                     type="password"
                     name="cardPw"
                     placeholder="**"
-                    className="input input-bordered"
+                    className="input input-bordered w-full"
                     value={cardInfo.cardPw}
                     onChange={handleCardInputChange}
                     maxLength={2}
@@ -414,34 +437,53 @@ export default function CheckoutPage() {
                 </div>
               </div>
               
-              <button 
-                className={`btn btn-primary ${processingPayment ? 'loading' : ''}`}
-                onClick={handleRegisterCard}
-                disabled={processingPayment}
-              >
-                카드 등록
-              </button>
+              <div className="flex justify-end gap-2">
+                {isChangingCard && (
+                  <button 
+                    className="btn btn-outline"
+                    onClick={handleCancelChangingCard}
+                  >
+                    변경 취소
+                  </button>
+                )}
+                <button 
+                  className={`btn btn-primary ${processingPayment ? 'loading' : ''}`}
+                  onClick={handleRegisterCard}
+                  disabled={processingPayment}
+                >
+                  카드 등록
+                </button>
+              </div>
             </div>
           )}
         </div>
-        
-        {/* 구독 시작 버튼 */}
-        <div className="flex justify-between items-center">
-          <button 
-            className="btn btn-outline"
-            onClick={() => router.push('/profile')}
-            disabled={processingPayment}
-          >
-            취소
-          </button>
-          
-          <button 
-            className={`btn btn-primary ${processingPayment ? 'loading' : ''}`}
-            onClick={handleStartSubscription}
-            disabled={!hasRegisteredCard || !selectedPlan || processingPayment}
-          >
-            구독 시작하기
-          </button>
+      </div>
+      
+      {/* 구독 시작 버튼 */}
+      <div className="card bg-base-100 shadow-md">
+        <div className="card-body">
+          <div className="flex flex-col md:flex-row justify-between items-center">
+            <div className="mb-4 md:mb-0">
+              <h3 className="font-bold text-lg mb-1">선택한 플랜</h3>
+              {selectedPlan && plans.length > 0 && (
+                <div>
+                  <p>
+                    <span className='mr-2 font-bold text-primary'>{plans.find(p => p.id === selectedPlan)?.name}</span>
+                    <span>{plans.find(p => p.id === selectedPlan)?.price.toLocaleString()}원
+                    /{plans.find(p => p.id === selectedPlan)?.interval === 'monthly' ? '월' : '년'}</span>
+                  </p>
+                </div>
+              )}
+            </div>
+            
+            <button 
+              className={`btn btn-primary btn-md w-full md:w-auto ${processingPayment ? 'loading' : ''}`}
+              onClick={handleStartSubscription}
+              disabled={!hasRegisteredCard || !selectedPlan || processingPayment}
+            >
+              구독 시작하기
+            </button>
+          </div>
         </div>
       </div>
     </div>
