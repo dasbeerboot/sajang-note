@@ -94,7 +94,7 @@ export default function LoginModal({ modalId, modalRef }: LoginModalProps) {
         <form method="dialog">
           <button className="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
         </form>
-        <h3 className="font-bold text-lg mb-4 text-center">로그인이 필요합니다</h3>
+        <h3 className="font-bold text-lg mb-4 text-center">로그인 / 회원가입</h3>
         
         {error && (
           <div className="bg-error/10 text-error p-3 rounded-lg mb-4">
@@ -109,14 +109,14 @@ export default function LoginModal({ modalId, modalRef }: LoginModalProps) {
             </p>
             
             <div className="flex flex-col gap-3 w-full max-w-xs mx-auto">
-              <button
+              {/* <button
                 onClick={handleGoogleLogin}
                 disabled={loading}
                 className="btn btn-outline gap-2"
               >
                 <GoogleLogo size={24} weight="bold" />
                 Google로 계속하기
-              </button>
+              </button> */}
               
               <button
                 onClick={handleKakaoLogin}

@@ -101,7 +101,6 @@ function LoginContent() {
       <div className="w-full max-w-md space-y-8 bg-base-200 p-8 rounded-lg shadow-lg">
         <div>
           <h1 className="text-3xl font-bold text-center">사장노트</h1>
-          <h2 className="mt-6 text-center text-2xl font-bold">로그인</h2>
         </div>
         
         {error && (
@@ -118,14 +117,14 @@ function LoginContent() {
         
         {!showEmailForm ? (
           <div className="flex flex-col gap-3 w-full max-w-xs mx-auto">
-            <button
+            {/* <button
               onClick={handleGoogleLogin}
               disabled={loading}
               className="btn btn-outline gap-2"
             >
               <GoogleLogo size={24} weight="bold" />
               Google로 계속하기
-            </button>
+            </button> */}
             
             <button
               onClick={handleKakaoLogin}

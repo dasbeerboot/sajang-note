@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "process-payments": "node scripts/run-recurring-payments.js"
   },
   "dependencies": {
     "@next/font": "^14.2.15",
@@ -17,6 +18,7 @@
     "autoprefixer": "^10.4.21",
     "axios": "^1.9.0",
     "daisyui": "^5.0.27",
+    "dotenv": "^16.5.0",
     "mixpanel-browser": "^2.64.0",
     "next": "15.3.1",
     "react": "^19.0.0",

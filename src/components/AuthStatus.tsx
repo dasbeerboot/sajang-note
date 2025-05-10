@@ -36,12 +36,11 @@ export default function AuthStatus() {
         </label>
         <ul tabIndex={0} className="menu menu-compact dropdown-content mt-3 p-2 shadow-lg bg-base-100 rounded-box w-52 text-base-content">
           <li>
-            <a className="justify-between">
+            <Link href="/profile" className="justify-between">
               프로필
-              <span className="badge">New</span>
-            </a>
+            </Link>
           </li>
-          <li><a>설정</a></li>
+          <li><Link href="/profile/settings">설정</Link></li>
           <li><button onClick={signOut}>로그아웃</button></li>
         </ul>
       </div>
