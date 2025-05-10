@@ -44,14 +44,14 @@ export default function AuthButtons({ openLoginModal }: AuthButtonsProps) {
   return (
     <div className="flex flex-col gap-3 w-full max-w-xs mx-auto">
       {/* Google 로그인 버튼은 필요시 주석 해제 */}
-      {/* <button
+      <button
         onClick={handleGoogleLogin}
         disabled={loading}
         className="btn btn-outline gap-2"
       >
         <GoogleLogo size={24} weight="bold" />
         Google로 계속하기
-      </button> */}
+      </button>
       
       <button
         onClick={handleKakaoLogin}

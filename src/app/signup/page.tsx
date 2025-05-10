@@ -55,36 +55,59 @@ export default function SignupPage() {
 
   // 최종 회원가입 로직 (useCallback으로 메모이제이션)
   const handleFinalSignup = useCallback(async () => {
-    if (!phoneVerified) { // 이 체크는 useEffect 호출 전에 phoneVerified가 true임을 보장받으므로, 안전장치 역할
+    console.log('[handleFinalSignup] Called. phoneVerified:', phoneVerified, 'isAttemptingFinalSignup:', isAttemptingFinalSignup);
+
+    if (!phoneVerified) {
+      console.error('[handleFinalSignup_ERROR] Phone not verified, aborting signup.');
       setError('휴대폰 인증을 먼저 완료해주세요. (내부 오류)');
-      setIsAttemptingFinalSignup(false); // 시도 상태 리셋
+      setIsAttemptingFinalSignup(false); 
       return;
     }
+
+    console.log('[handleFinalSignup] Proceeding with signup. User details:', { name, email, phone_raw: phone });
     setLoading(true); 
     setError(null);
     try {
-      const { error: signUpError } = await supabase.auth.signUp({
+      const cleanedPhone = phone.replace(/-/g, '');
+      const { data: signUpResponse, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          data: {
-            full_name: name,
-            phone: phone.replace(/-/g, ''),
-            phone_verified: true,
-            user_status: 'pending'
+          data: { // 이 정보가 NEW.raw_user_meta_data로 전달되어 트리거가 사용합니다.
+            full_name: name, 
+            phone: cleanedPhone,
+            phone_verified: true, // 전화번호 인증 완료
+            user_status: 'pending'  // 이메일 인증 대기 상태
           },
+          // emailRedirectTo: `${window.location.origin}/auth/confirm` // 필요하다면 이메일 인증 후 리디렉션 URL 지정
         }
       });
-      if (signUpError) throw signUpError;
+
+      if (signUpError) {
+        console.error('[handleFinalSignup_ERROR] Supabase signUp error:', signUpError);
+        throw signUpError;
+      }
+
+      if (!signUpResponse.user) { 
+        console.error('[handleFinalSignup_ERROR] User object is null after signUp.');
+        throw new Error('회원가입 후 사용자 정보를 받지 못했습니다.');
+      }
+      
+      console.log('[handleFinalSignup] supabase.auth.signUp successful for user:', signUpResponse.user.id);
+      // profiles 테이블에 대한 직접적인 upsert/update 로직은 이제 트리거가 담당하므로 제거합니다.
+
       setStep(3);
       showToast('회원가입 요청이 완료되었습니다. 이메일을 확인해주세요.', 'success');
+
     } catch (error: any) {
+      console.error('[handleFinalSignup_CATCH_ERROR] Catch block error:', error);
       setError(error.message || '회원가입 중 오류가 발생했습니다.');
     } finally {
+      console.log('[handleFinalSignup] Finally block. Setting loading and isAttemptingFinalSignup to false.');
       setLoading(false);
-      setIsAttemptingFinalSignup(false); // 시도 상태 리셋
+      setIsAttemptingFinalSignup(false);
     }
-  }, [email, password, name, phone, phoneVerified, supabase, showToast, router, setLoading, setError, setStep]);
+  }, [email, password, name, phone, phoneVerified, supabase, showToast, router, setLoading, setError, setStep, isAttemptingFinalSignup]);
 
   const handleVerifyCodeAndProceed = async () => {
     if (verificationCode.length !== 6) {
@@ -116,8 +139,12 @@ export default function SignupPage() {
 
   // phoneVerified와 isAttemptingFinalSignup 상태가 변경되면 최종 가입 시도
   useEffect(() => {
+    console.log('[useEffect_FinalSignup] Detected state change. phoneVerified:', phoneVerified, 'isAttemptingFinalSignup:', isAttemptingFinalSignup);
     if (phoneVerified && isAttemptingFinalSignup) {
+      console.log('[useEffect_FinalSignup] Conditions met, calling handleFinalSignup.');
       handleFinalSignup();
+    } else {
+      console.log('[useEffect_FinalSignup] Conditions NOT met, not calling handleFinalSignup.');
     }
   }, [phoneVerified, isAttemptingFinalSignup, handleFinalSignup]);
 
@@ -237,8 +264,8 @@ export default function SignupPage() {
             <p className="text-xs opacity-70">
               이메일을 받지 못하셨다면 스팸함도 확인해주세요.
             </p>
-            <Link href="/login" className="btn btn-primary w-full">
-              로그인 페이지로
+            <Link href="/" className="btn btn-primary w-full">
+              홈 화면으로 가기
             </Link>
           </div>
         )}

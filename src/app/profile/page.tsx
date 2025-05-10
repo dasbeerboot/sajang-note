@@ -191,63 +191,71 @@ export default function ProfilePage() {
           
           {profileData?.subscription_status === 'active' ? (
             <div className="py-2">
-              <div className="flex items-center justify-between border border-gray-300 p-3 rounded-lg mb-4">
-                <div className="flex items-center">
-                  <div className="flex flex-col">
-                    <div className="flex items-center">
-                      <span className="font-medium">{profileData.subscription_tier === 'premium' ? 'Pro' : 'Basic'} 플랜</span>
-                      <span className="text-xs ml-2 text-green-600">활성</span>
+              <div className="p-6 border border-success rounded-lg shadow-sm bg-success/5">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+                  <div className="mb-4 sm:mb-0">
+                    <div className="flex items-center mb-1">
+                      <CheckCircle size={20} weight="fill" className="text-success mr-2" />
+                      <span className="text-lg font-semibold text-success">
+                        {profileData.subscription_tier === 'premium' ? 'Pro' : 'Basic'} 플랜 구독 중
+                      </span>
                     </div>
                     {profileData.subscription_end_date && (
-                      <span className="text-xs opacity-70 mt-1">
+                      <p className="text-sm text-base-content opacity-80">
                         다음 결제일: {new Date(profileData.subscription_end_date).toISOString().split('T')[0]}
-                      </span>
+                      </p>
                     )}
                   </div>
+                  <button 
+                    onClick={handleCancelSubscription}
+                    className="btn btn-outline btn-error btn-md w-full sm:w-auto"
+                  >
+                    구독 취소하기
+                  </button>
                 </div>
-                <button 
-                  onClick={handleCancelSubscription}
-                  className="btn btn-outline btn-sm btn-error"
-                >
-                  구독 취소
-                </button>
-              </div>
-              
-              <div className="text-sm opacity-70">
-                <p>구독을 취소하면 다음 결제일부터 구독이 해지됩니다. 취소 후에도 결제 기간 만료일까지는 서비스를 계속 이용할 수 있습니다.</p>
+                <div className="divider my-4"></div>
+                <p className="text-xs text-base-content opacity-60">
+                  구독을 취소하면 다음 결제일부터 자동 결제가 중단되며, 현재 구독 기간 만료일까지는 계속 서비스를 이용할 수 있습니다.
+                </p>
               </div>
             </div>
           ) : profileData?.subscription_status === 'canceled' ? (
             <div className="py-2">
-              <div className="flex items-center justify-between border border-gray-300 p-3 rounded-lg mb-4">
-                <div className="flex flex-col">
-                  <div className="flex items-center">
-                    <span className="font-medium">{profileData.subscription_tier === 'premium' ? 'Pro' : 'Basic'} 플랜</span>
-                    <span className="text-xs ml-2 text-yellow-600">취소됨</span>
+              <div className="p-6 border border-warning rounded-lg shadow-sm bg-warning/5">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+                  <div className="mb-4 sm:mb-0">
+                    <div className="flex items-center mb-1">
+                      <XCircle size={20} weight="fill" className="text-warning mr-2" />
+                      <span className="text-lg font-semibold text-warning">
+                        구독이 취소되었습니다
+                      </span>
+                    </div>
+                    {profileData.subscription_end_date && (
+                      <p className="text-sm text-base-content opacity-80">
+                        {profileData.subscription_tier === 'premium' ? 'Pro' : 'Basic'} 플랜 이용 기간: {new Date(profileData.subscription_end_date).toISOString().split('T')[0]}까지
+                      </p>
+                    )}
                   </div>
-                  {profileData.subscription_end_date && (
-                    <span className="text-xs opacity-70 mt-1">
-                      이용 기간: {new Date(profileData.subscription_end_date).toISOString().split('T')[0]}까지
-                    </span>
-                  )}
+                  <button 
+                    onClick={handleSubscribe}
+                    className="btn btn-primary btn-md w-full sm:w-auto"
+                  >
+                    다시 구독하기
+                  </button>
                 </div>
-                <button 
-                  onClick={handleSubscribe}
-                  className="btn btn-primary btn-sm"
-                >
-                  다시 구독하기
-                </button>
               </div>
             </div>
           ) : (
             <div className="py-2">
-              <div className="p-4 border border-gray-300 rounded-lg bg-base-200 mb-4">
-                <p className="mb-3">아직 구독 중이 아닙니다. 프리미엄 기능을 이용하려면 구독해주세요.</p>
+              <div className="text-center p-6 border border-dashed border-base-300 rounded-lg">
+                <CreditCard size={32} className="mx-auto mb-3 text-base-content opacity-50" />
+                <p className="mb-3 text-base-content opacity-80">아직 구독 중인 플랜이 없습니다.</p>
+                <p className="text-sm opacity-60 mb-4">프리미엄 기능을 이용하려면 구독해주세요.</p>
                 <button 
                   onClick={handleSubscribe}
-                  className="btn btn-primary"
+                  className="btn btn-primary btn-md"
                 >
-                  구독하기
+                  구독 시작하기
                 </button>
               </div>
             </div>

@@ -93,6 +93,17 @@ export default function LoginModal({ modalId }: LoginModalProps) {
             <p className="text-center text-sm opacity-80 mb-6">
               사장노트의 모든 기능을 이용하려면 로그인이 필요합니다.
             </p>
+
+            {/* <div className="flex flex-col gap-3 w-full max-w-xs mx-auto mb-1">
+              <button
+                onClick={handleGoogleLogin}
+                disabled={loading}
+                className="btn btn-outline gap-2"
+              >
+                <GoogleLogo size={24} weight="bold" />
+                구글로 계속하기
+              </button>
+            </div> */}
             
             <div className="flex flex-col gap-3 w-full max-w-xs mx-auto">
               <button
