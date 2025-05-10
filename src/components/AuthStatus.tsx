@@ -5,10 +5,12 @@ import { useTheme } from '@/contexts/ThemeContext';
 import Link from 'next/link';
 import Image from 'next/image';
 import { User } from '@phosphor-icons/react';
+import { useAuthModal } from '@/contexts/AuthModalContext';
 
 export default function AuthStatus() {
   const { user, loading, signOut } = useAuth();
   const { theme } = useTheme();
+  const { openAuthModal } = useAuthModal();
 
   if (loading) {
     return <div className="loading loading-spinner loading-xs"></div>;
@@ -22,7 +24,7 @@ export default function AuthStatus() {
             <div className="w-8 rounded-full">
               <Image 
                 src={user.user_metadata.avatar_url} 
-                alt="" 
+                alt="User avatar"
                 width={32} 
                 height={32}
                 className="rounded-full"
@@ -34,13 +36,12 @@ export default function AuthStatus() {
             </div>
           )}
         </label>
-        <ul tabIndex={0} className="menu menu-compact dropdown-content mt-3 p-2 shadow-lg bg-base-100 rounded-box w-52 text-base-content">
+        <ul tabIndex={0} className="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow bg-base-100 rounded-box w-52">
           <li>
             <Link href="/profile" className="justify-between">
               프로필
             </Link>
           </li>
-          <li><Link href="/profile/settings">설정</Link></li>
           <li><button onClick={signOut}>로그아웃</button></li>
         </ul>
       </div>
@@ -48,15 +49,11 @@ export default function AuthStatus() {
   }
 
   return (
-    <Link 
-      href="/login" 
-      className={`btn btn-sm btn-outline text-primary-content border-primary-content ${
-        theme === 'light' 
-          ? 'hover:bg-white hover:text-primary hover:border-white' 
-          : 'hover:bg-gray-800 hover:text-gray-100 hover:border-gray-800'
-      }`}
+    <button 
+      onClick={openAuthModal}
+      className={`btn btn-sm btn-ghost text-white hover:bg-white/20`}
     >
       로그인
-    </Link>
+    </button>
   );
 } 

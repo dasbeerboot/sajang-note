@@ -1,22 +1,25 @@
 'use client';
 
-import { RefObject, useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { GoogleLogo, Envelope } from '@phosphor-icons/react';
-import { signInWithPassword, signInWithOtp, signInWithGoogle, signInWithKakao } from '@/lib/auth';
+import { signInWithPassword, signInWithGoogle, signInWithKakao } from '@/lib/auth';
+import { useRouter } from 'next/navigation';
+import { useAuthModal } from '@/contexts/AuthModalContext';
 
 interface LoginModalProps {
   modalId: string;
-  modalRef?: RefObject<HTMLDialogElement | null>;
 }
 
-export default function LoginModal({ modalId, modalRef }: LoginModalProps) {
+export default function LoginModal({ modalId }: LoginModalProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showEmailForm, setShowEmailForm] = useState(false);
-  const [emailSent, setEmailSent] = useState(false);
+  const router = useRouter();
+
+  const { authModalRef, closeAuthModal } = useAuthModal();
 
   const handlePasswordLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,32 +31,9 @@ export default function LoginModal({ modalId, modalRef }: LoginModalProps) {
       
       if (error) throw error;
       
-      // 로그인 성공 시 모달 닫기
-      modalRef?.current?.close();
+      closeAuthModal();
     } catch (error: Error | unknown) {
       const errorMessage = error instanceof Error ? error.message : '로그인 중 오류가 발생했습니다.';
-      setError(errorMessage);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleEmailLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email || !email.includes('@')) {
-      setError('유효한 이메일을 입력해주세요.');
-      return;
-    }
-
-    try {
-      setLoading(true);
-      setError(null);
-      const { error } = await signInWithOtp(email);
-      
-      if (error) throw error;
-      setEmailSent(true);
-    } catch (error: Error | unknown) {
-      const errorMessage = error instanceof Error ? error.message : '로그인 링크 전송 중 오류가 발생했습니다.';
       setError(errorMessage);
     } finally {
       setLoading(false);
@@ -61,13 +41,13 @@ export default function LoginModal({ modalId, modalRef }: LoginModalProps) {
   };
 
   const handleGoogleLogin = async () => {
+    setLoading(true);
     try {
-      setLoading(true);
       const { error } = await signInWithGoogle();
       
       if (error) throw error;
     } catch (error: Error | unknown) {
-      const errorMessage = error instanceof Error ? error.message : '로그인 중 오류가 발생했습니다.';
+      const errorMessage = error instanceof Error ? error.message : 'Google 로그인 오류';
       setError(errorMessage);
     } finally {
       setLoading(false);
@@ -75,51 +55,48 @@ export default function LoginModal({ modalId, modalRef }: LoginModalProps) {
   };
 
   const handleKakaoLogin = async () => {
+    setLoading(true);
     try {
-      setLoading(true);
       const { error } = await signInWithKakao();
       
       if (error) throw error;
     } catch (error: Error | unknown) {
-      const errorMessage = error instanceof Error ? error.message : '로그인 중 오류가 발생했습니다.';
+      const errorMessage = error instanceof Error ? error.message : '카카오 로그인 오류';
       setError(errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
+  const resetAndClose = () => {
+    setEmail('');
+    setPassword('');
+    setError(null);
+    setShowEmailForm(false);
+    closeAuthModal();
+  };
+
   return (
-    <dialog id={modalId} className="modal" ref={modalRef}>
+    <dialog id={modalId} className="modal" ref={authModalRef} onClose={resetAndClose}>
       <div className="modal-box max-w-md">
-        <form method="dialog">
-          <button className="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
-        </form>
-        <h3 className="font-bold text-lg mb-4 text-center">로그인 / 회원가입</h3>
+        <button className="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" onClick={resetAndClose}>✕</button>
+        <h3 className="font-bold text-lg mb-6 text-center">로그인 / 회원가입</h3>
         
         {error && (
-          <div className="bg-error/10 text-error p-3 rounded-lg mb-4">
+          <div className="bg-error/10 text-error p-3 rounded-lg mb-4 text-sm">
             {error}
           </div>
         )}
         
         {!showEmailForm ? (
           <>
-            <p className="text-center mb-6">
+            <p className="text-center text-sm opacity-80 mb-6">
               사장노트의 모든 기능을 이용하려면 로그인이 필요합니다.
             </p>
             
             <div className="flex flex-col gap-3 w-full max-w-xs mx-auto">
-              {/* <button
-                onClick={handleGoogleLogin}
-                disabled={loading}
-                className="btn btn-outline gap-2"
-              >
-                <GoogleLogo size={24} weight="bold" />
-                Google로 계속하기
-              </button> */}
-              
               <button
-                onClick={handleKakaoLogin}
+                onClick={async () => { await handleKakaoLogin(); closeAuthModal();}}
                 disabled={loading}
                 className="btn bg-[#FEE500] text-[#000000] border-none hover:bg-[#E6CF00] hover:text-[#000000]"
               >
@@ -132,7 +109,10 @@ export default function LoginModal({ modalId, modalRef }: LoginModalProps) {
               <div className="divider text-xs text-gray-500">또는</div>
 
               <button
-                onClick={() => setShowEmailForm(true)}
+                onClick={() => {
+                  setShowEmailForm(true);
+                  setError(null);
+                }}
                 className="btn btn-outline btn-primary gap-2"
               >
                 <Envelope size={24} weight="bold" />
@@ -140,132 +120,66 @@ export default function LoginModal({ modalId, modalRef }: LoginModalProps) {
               </button>
             </div>
           </>
-        ) : emailSent ? (
-          <div className="text-center p-4">
-            <h3 className="font-bold mb-2">이메일을 확인해주세요</h3>
-            <p className="text-sm mb-4">
-              {email}로 로그인 링크를 전송했습니다.<br />
-              이메일의 링크를 클릭하여 로그인을 완료하세요.
-            </p>
-            <button 
-              onClick={() => {
-                setShowEmailForm(false);
-                setEmailSent(false);
-                setEmail('');
-              }}
-              className="btn btn-sm btn-outline"
-            >
-              돌아가기
-            </button>
-          </div>
         ) : (
-          <div className="w-full max-w-xs mx-auto">
-            <div className="tabs tabs-boxed mb-4 flex">
-              <button 
-                className={`tab flex-1 ${!password ? 'tab-active' : ''}`}
-                onClick={() => setPassword('')}
+          <div className="w-full max-w-xs mx-auto py-4">
+            <form onSubmit={handlePasswordLogin} className="flex flex-col gap-4">
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text">이메일</span>
+                </label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="이메일 주소"
+                  className="input input-bordered w-full"
+                  required
+                />
+              </div>
+              
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text">비밀번호</span>
+                </label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="비밀번호"
+                  className="input input-bordered w-full"
+                  required
+                />
+              </div>
+              
+              <button
+                type="submit"
+                disabled={loading}
+                className="btn btn-primary w-full mt-2"
               >
-                이메일 링크
+                {loading ? <span className="loading loading-spinner loading-xs"></span> : '로그인'}
               </button>
-              <button 
-                className={`tab flex-1 ${password ? 'tab-active' : ''}`}
-                onClick={() => setPassword(' ')}
-              >
-                비밀번호
-              </button>
+            </form>
+            
+            <div className="text-center text-sm mt-6">
+              계정이 없으신가요?{' '}
+              <Link href="/signup" className="text-primary hover:underline font-medium" onClick={resetAndClose}>
+                회원가입
+              </Link>
             </div>
             
-            {!password ? (
-              <form onSubmit={handleEmailLogin} className="flex flex-col gap-3">
-                <div className="form-control">
-                  <label className="label">
-                    <span className="label-text">이메일</span>
-                  </label>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="이메일 주소를 입력하세요"
-                    className="input input-bordered w-full"
-                    required
-                  />
-                </div>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="btn btn-primary w-full"
-                >
-                  {loading ? <span className="loading loading-spinner loading-xs"></span> : '로그인 링크 받기'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowEmailForm(false)}
-                  className="btn btn-ghost btn-sm w-full"
-                >
-                  돌아가기
-                </button>
-              </form>
-            ) : (
-              <form onSubmit={handlePasswordLogin} className="flex flex-col gap-3">
-                <div className="form-control">
-                  <label className="label">
-                    <span className="label-text">이메일</span>
-                  </label>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="이메일 주소를 입력하세요"
-                    className="input input-bordered w-full"
-                    required
-                  />
-                </div>
-                
-                <div className="form-control">
-                  <label className="label">
-                    <span className="label-text">비밀번호</span>
-                  </label>
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="비밀번호를 입력하세요"
-                    className="input input-bordered w-full"
-                    required
-                  />
-                </div>
-                
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="btn btn-primary w-full"
-                >
-                  {loading ? <span className="loading loading-spinner loading-xs"></span> : '로그인'}
-                </button>
-                
-                <div className="text-center text-sm">
-                  계정이 없으신가요?{' '}
-                  <Link href="/signup" className="text-primary hover:underline" onClick={() => modalRef?.current?.close()}>
-                    회원가입
-                  </Link>
-                </div>
-                
-                <button
-                  type="button"
-                  onClick={() => setShowEmailForm(false)}
-                  className="btn btn-ghost btn-sm w-full"
-                >
-                  소셜 로그인으로 돌아가기
-                </button>
-              </form>
-            )}
+            <button
+              type="button"
+              onClick={() => {
+                setShowEmailForm(false);
+                setError(null);
+              }}
+              className="btn btn-ghost btn-sm w-full mt-4"
+            >
+              &larr; 소셜 로그인 및 다른 방법
+            </button>
           </div>
         )}
       </div>
-      
-      <form method="dialog" className="modal-backdrop">
-        <button>close</button>
-      </form>
     </dialog>
   );
 } 

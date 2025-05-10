@@ -52,9 +52,7 @@ export const signInWithKakao = async () => {
     provider: 'kakao',
     options: {
       redirectTo: `${window.location.origin}/auth/callback`,
-      queryParams: {
-        scope: 'profile_nickname,profile_image,account_email,name,phone_number'
-      }
+      scopes: 'profile_nickname,profile_image,account_email,name,phone_number'
     },
   });
   

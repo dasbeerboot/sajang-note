@@ -1,16 +1,18 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import SearchForm from '@/components/SearchForm';
 import FeatureSection from '@/components/FeatureSection';
-import LoginModal from '@/components/LoginModal';
+import { useAuthModal } from '@/contexts/AuthModalContext';
 
 export default function Home() {
   const { user, isProfileComplete } = useAuth();
   const router = useRouter();
-  const loginModalRef = useRef<HTMLDialogElement | null>(null);
+  const searchParams = useSearchParams();
+  const { openAuthModal } = useAuthModal();
+
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedContent, setGeneratedContent] = useState<{
     carrotTitle: string;
@@ -20,29 +22,27 @@ export default function Home() {
     threadPost: string;
   } | null>(null);
 
+  useEffect(() => {
+    if (searchParams.get('openLoginModal') === 'true') {
+      openAuthModal();
+      const nextURL = new URL(window.location.href);
+      nextURL.searchParams.delete('openLoginModal');
+      router.replace(nextURL.pathname + nextURL.search, { scroll: false });
+    }
+  }, [searchParams, openAuthModal, router]);
+
   const handleSearchSubmit = async () => {
-    // 로그인 상태 확인
     if (!user) {
-      // 로그인되지 않은 경우 로그인 모달 표시
-      loginModalRef.current?.showModal();
+      openAuthModal();
       return;
     }
-    
-    // 프로필 설정 완료 여부 확인
     if (!isProfileComplete) {
-      // 프로필 설정이 완료되지 않은 경우 프로필 설정 페이지로 리다이렉트
       router.push('/profile/setup');
       return;
     }
-    
-    // 로그인되고 프로필 설정이 완료된 경우 콘텐츠 생성 진행
     setIsGenerating(true);
-    
-    // 생성 시간을 시뮬레이션하기 위한 타임아웃
     setTimeout(() => {
       setIsGenerating(false);
-      
-      // 샘플 생성 콘텐츠
       setGeneratedContent({
         carrotTitle: "우리동네 커피 맛집, 오늘 방문하면 아메리카노 1+1!",
         carrotContent: "안녕하세요 이웃님들! 저희 카페가 오픈 1주년을 맞이했어요. 오늘 방문하시는 모든 분들께 아메리카노 1+1 이벤트를 진행합니다. 특별히 준비한 수제 쿠키도 무료로 드려요! 많은 관심 부탁드립니다.",
@@ -144,9 +144,6 @@ export default function Home() {
       
       {/* 특징 섹션 */}
       <FeatureSection />
-      
-      {/* 로그인 모달 */}
-      <LoginModal modalId="login_modal" modalRef={loginModalRef} />
     </div>
   );
 }

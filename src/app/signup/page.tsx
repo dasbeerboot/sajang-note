@@ -1,257 +1,245 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 import { useToast } from '@/contexts/ToastContext';
+import { CheckCircle } from '@phosphor-icons/react';
 
 export default function SignupPage() {
   const router = useRouter();
   const { showToast } = useToast();
+  
+  // Step 1: 기본 정보 입력
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [phone, setPhone] = useState('');
-  const [verificationCode, setVerificationCode] = useState('');
   const [name, setName] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [step, setStep] = useState(1); // 1: 기본 정보, 2: 전화번호 인증
+  const [phone, setPhone] = useState('');
+  
+  // Step 2: 전화번호 인증
+  const [verificationCode, setVerificationCode] = useState('');
   const [codeSent, setCodeSent] = useState(false);
-  
-  const handleSignup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
-    
-    try {
-      // 회원가입 처리
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: name,
-            phone: phone,
-            phone_verified: false
-          }
-        }
-      });
-      
-      if (error) throw error;
-      
-      // 회원가입 성공 후 인증 단계로 이동
-      setStep(2);
-    } catch (error: Error | unknown) {
-      const errorMessage = error instanceof Error ? error.message : '회원가입 중 오류가 발생했습니다.';
-      setError(errorMessage);
-    } finally {
-      setLoading(false);
-    }
-  };
-  
+  const [isVerifyingPhone, setIsVerifyingPhone] = useState(false); // 전화번호 인증 API 호출 중 로딩 상태
+  const [phoneVerified, setPhoneVerified] = useState(false); // 전화번호 인증 완료 여부
+  const [isAttemptingFinalSignup, setIsAttemptingFinalSignup] = useState(false); // 최종 가입 시도 상태
+
+  const [loading, setLoading] = useState(false); // 전체 회원가입 처리 중 로딩 상태
+  const [error, setError] = useState<string | null>(null);
+  const [step, setStep] = useState(1); // 1: 정보 입력, 2: 전화번호 인증, 3: 완료
+
   const handleSendVerification = async () => {
-    setLoading(true);
+    if (!phone || !/^01([0|1|6|7|8|9])([0-9]{3,4})([0-9]{4})$/.test(phone.replace(/-/g, ''))) {
+      setError('올바른 휴대폰 번호를 입력해주세요.');
+      return;
+    }
+    setIsVerifyingPhone(true);
     setError(null);
     
     try {
       const response = await fetch('/api/send-verification', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone, isSignup: true })
+        body: JSON.stringify({ phone: phone.replace(/-/g, ''), isSignup: true })
       });
-      
       const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.message || '인증번호 발송에 실패했습니다.');
-      }
-      
+      if (!response.ok) throw new Error(data.error || '인증번호 발송에 실패했습니다.');
       setCodeSent(true);
-    } catch (error: Error | unknown) {
-      const errorMessage = error instanceof Error ? error.message : '인증번호 발송 중 오류가 발생했습니다.';
-      setError(errorMessage);
+      showToast('인증번호가 발송되었습니다.', 'info');
+    } catch (error: any) {
+      setError(error.message);
     } finally {
-      setLoading(false);
+      setIsVerifyingPhone(false);
     }
   };
-  
-  const handleVerifyCode = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
+
+  // 최종 회원가입 로직 (useCallback으로 메모이제이션)
+  const handleFinalSignup = useCallback(async () => {
+    if (!phoneVerified) { // 이 체크는 useEffect 호출 전에 phoneVerified가 true임을 보장받으므로, 안전장치 역할
+      setError('휴대폰 인증을 먼저 완료해주세요. (내부 오류)');
+      setIsAttemptingFinalSignup(false); // 시도 상태 리셋
+      return;
+    }
+    setLoading(true); 
     setError(null);
-    
+    try {
+      const { error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: name,
+            phone: phone.replace(/-/g, ''),
+            phone_verified: true,
+            user_status: 'pending'
+          },
+        }
+      });
+      if (signUpError) throw signUpError;
+      setStep(3);
+      showToast('회원가입 요청이 완료되었습니다. 이메일을 확인해주세요.', 'success');
+    } catch (error: any) {
+      setError(error.message || '회원가입 중 오류가 발생했습니다.');
+    } finally {
+      setLoading(false);
+      setIsAttemptingFinalSignup(false); // 시도 상태 리셋
+    }
+  }, [email, password, name, phone, phoneVerified, supabase, showToast, router, setLoading, setError, setStep]);
+
+  const handleVerifyCodeAndProceed = async () => {
+    if (verificationCode.length !== 6) {
+      setError('6자리 인증번호를 입력해주세요.');
+      return;
+    }
+    setIsVerifyingPhone(true);
+    setError(null);
+
     try {
       const response = await fetch('/api/verify-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone, code: verificationCode, isSignup: true })
+        body: JSON.stringify({ phone: phone.replace(/-/g, ''), code: verificationCode, isSignup: true })
       });
-      
       const data = await response.json();
+      if (!response.ok) throw new Error(data.error || '인증번호가 올바르지 않습니다.');
       
-      if (!response.ok) {
-        throw new Error(data.message || '인증번호 확인에 실패했습니다.');
-      }
-      
-      // 인증 성공 시 토스트 메시지 표시 후 홈으로 이동
       showToast('휴대폰 인증이 완료되었습니다.', 'success');
-      router.push('/');
-    } catch (error: Error | unknown) {
-      const errorMessage = error instanceof Error ? error.message : '인증번호 확인 중 오류가 발생했습니다.';
-      setError(errorMessage);
+      setPhoneVerified(true); // 전화번호 인증 성공 상태 설정
+      setIsAttemptingFinalSignup(true); // 최종 가입 시도 상태 설정 -> useEffect 발동
+
+    } catch (error: any) {
+      setError(error.message);
     } finally {
-      setLoading(false);
+      setIsVerifyingPhone(false);
     }
   };
 
+  // phoneVerified와 isAttemptingFinalSignup 상태가 변경되면 최종 가입 시도
+  useEffect(() => {
+    if (phoneVerified && isAttemptingFinalSignup) {
+      handleFinalSignup();
+    }
+  }, [phoneVerified, isAttemptingFinalSignup, handleFinalSignup]);
+
+  const handlePrimarySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+
+    if (step === 1) {
+      // 기본 정보 입력 완료, 전화번호 인증 단계로 이동
+      if (!name || !email || !password || !phone) {
+        setError('모든 정보를 입력해주세요.');
+        return;
+      }
+      if (password.length < 6) {
+        setError('비밀번호는 6자 이상이어야 합니다.');
+        return;
+      }
+      setStep(2); // 전화번호 인증 단계로
+      handleSendVerification(); // 자동으로 인증번호 발송
+    } else if (step === 2 && codeSent && !phoneVerified) {
+      // 인증번호 입력 후 확인 단계
+      await handleVerifyCodeAndProceed();
+    }
+    // phoneVerified가 true가 되면 handleFinalSignup이 호출됨
+  };
+
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center p-4">
-      <div className="w-full max-w-md space-y-8 bg-base-200 p-8 rounded-lg shadow-lg">
+    <div className="flex min-h-screen flex-col items-center justify-center p-4 bg-base-100">
+      <div className="w-full max-w-md space-y-6 bg-base-200 p-8 rounded-xl shadow-xl">
         <div>
-          <h1 className="text-3xl font-bold text-center">사장노트</h1>
-          <h2 className="mt-6 text-center text-2xl font-bold">
-            {step === 1 ? '회원가입' : '휴대폰 인증'}
+          <Link href="/" className="flex justify-center mb-6">
+            {/* 로고 SVG 또는 Image 컴포넌트 추가 가능 */}
+            <h1 className="text-3xl font-bold text-center text-primary">사장노트</h1>
+          </Link>
+          <h2 className="text-center text-xl font-semibold text-gray-700">
+            {step === 1 && '가입 정보 입력'}
+            {step === 2 && '휴대폰 인증'}
+            {step === 3 && '회원가입 완료'}
           </h2>
         </div>
         
         {error && (
-          <div className="bg-error/10 text-error p-3 rounded-lg">
-            {error}
+          <div role="alert" className="alert alert-error text-sm">
+            <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-5 w-5" fill="none" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            <span>{error}</span>
           </div>
         )}
         
-        {step === 1 ? (
-          <form onSubmit={handleSignup} className="space-y-4">
+        {step === 1 && (
+          <form onSubmit={handlePrimarySubmit} className="space-y-4">
+            {/* 이름, 이메일, 비밀번호, 휴대폰 번호 입력 필드는 기존과 유사하게 유지 */}
             <div>
-              <label htmlFor="name" className="block text-sm font-medium">
-                이름
+              <label htmlFor="name" className="label">
+                <span className="label-text">이름</span>
               </label>
-              <input
-                id="name"
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="input input-bordered w-full"
-                required
-              />
+              <input id="name" type="text" value={name} onChange={(e) => setName(e.target.value)} className="input input-bordered w-full" required />
             </div>
-            
             <div>
-              <label htmlFor="email" className="block text-sm font-medium">
-                이메일
+              <label htmlFor="email" className="label">
+                <span className="label-text">이메일</span>
               </label>
-              <input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="input input-bordered w-full"
-                required
-              />
+              <input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="input input-bordered w-full" required />
             </div>
-            
             <div>
-              <label htmlFor="password" className="block text-sm font-medium">
-                비밀번호
+              <label htmlFor="password" className="label">
+                <span className="label-text">비밀번호 (6자 이상)</span>
               </label>
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="input input-bordered w-full"
-                required
-                minLength={6}
-              />
+              <input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="input input-bordered w-full" required minLength={6} />
             </div>
-            
             <div>
-              <label htmlFor="phone" className="block text-sm font-medium">
-                휴대폰 번호 (- 없이 입력)
+              <label htmlFor="phone" className="label">
+                <span className="label-text">휴대폰 번호 ('-' 없이 입력)</span>
               </label>
-              <input
-                id="phone"
-                type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                className="input input-bordered w-full"
-                required
-                pattern="[0-9]{10,11}"
-                placeholder="01012345678"
-              />
+              <input id="phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value.replace(/[^0-9]/g, ''))} className="input input-bordered w-full" required pattern="01[016789][0-9]{7,8}" placeholder="01012345678" />
             </div>
-            
-            <div>
-              <button
-                type="submit"
-                className="btn btn-primary w-full"
-                disabled={loading}
-              >
-                {loading ? '처리 중...' : '회원가입'}
-              </button>
-            </div>
-            
+            <button type="submit" className="btn btn-primary w-full" disabled={loading || isVerifyingPhone}>
+              {isVerifyingPhone ? '처리 중...' : (loading ? '가입 처리 중...' : '다음 (휴대폰 인증)')}
+            </button>
             <div className="text-center text-sm">
-              이미 계정이 있으신가요?{' '}
-              <Link href="/login" className="text-primary hover:underline">
-                로그인
-              </Link>
+              이미 계정이 있으신가요? <Link href="/?openLoginModal=true" className="link link-primary">로그인</Link>
             </div>
           </form>
-        ) : (
-          <div className="space-y-4">
-            <div>
-              <p className="mb-4">
-                {phone}번으로 인증번호를 발송합니다.
-              </p>
-              
-              {!codeSent ? (
-                <button
-                  onClick={handleSendVerification}
-                  className="btn btn-primary w-full"
-                  disabled={loading}
-                >
-                  {loading ? '발송 중...' : '인증번호 발송'}
-                </button>
-              ) : (
-                <form onSubmit={handleVerifyCode} className="space-y-4">
-                  <div>
-                    <label htmlFor="code" className="block text-sm font-medium">
-                      인증번호
-                    </label>
-                    <input
-                      id="code"
-                      type="text"
-                      value={verificationCode}
-                      onChange={(e) => setVerificationCode(e.target.value)}
-                      className="input input-bordered w-full"
-                      required
-                      pattern="[0-9]{6}"
-                      placeholder="6자리 숫자"
-                    />
-                  </div>
-                  
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={handleSendVerification}
-                      className="btn btn-outline flex-1"
-                      disabled={loading}
-                    >
-                      재발송
-                    </button>
-                    <button
-                      type="submit"
-                      className="btn btn-primary flex-1"
-                      disabled={loading}
-                    >
-                      {loading ? '확인 중...' : '확인'}
-                    </button>
-                  </div>
-                </form>
-              )}
+        )}
+
+        {step === 2 && (
+          <form onSubmit={handlePrimarySubmit} className="space-y-4">
+            <p className="text-sm text-center">
+              {phone} (으)로 발송된 6자리 인증번호를 입력해주세요.
+            </p>
+            <div className="form-control">
+              <label className="label">
+                <span className="label-text">인증번호</span>
+              </label>
+              <input id="code" type="text" value={verificationCode} onChange={(e) => setVerificationCode(e.target.value.replace(/[^0-9]/g, ''))} className="input input-bordered w-full" required maxLength={6} placeholder="6자리 숫자" />
             </div>
+            <div className="flex gap-2">
+              <button type="button" onClick={handleSendVerification} className="btn btn-outline flex-1" disabled={isVerifyingPhone}>
+                {isVerifyingPhone ? '발송 중...' : '재발송'}
+              </button>
+              <button type="submit" className="btn btn-primary flex-1" disabled={isVerifyingPhone || verificationCode.length !== 6 || phoneVerified}>
+                {isVerifyingPhone ? '확인 중...' : '인증 확인'}
+              </button>
+            </div>
+            <button type="button" onClick={() => { setStep(1); setError(null); setCodeSent(false); setPhoneVerified(false); setIsAttemptingFinalSignup(false);}} className="btn btn-ghost btn-sm w-full">
+              &larr; 이전 단계로
+            </button>
+          </form>
+        )}
+
+        {step === 3 && (
+          <div className="text-center space-y-4 py-4">
+            <CheckCircle size={48} weight="fill" className="text-success mx-auto" />
+            <h3 className="font-semibold text-lg">회원가입 요청 완료!</h3>
+            <p className="text-sm">
+              입력하신 이메일 주소 <span className="font-medium text-primary">{email}</span>로<br/>계정 활성화 링크를 보냈습니다.
+            </p>
+            <p className="text-xs opacity-70">
+              이메일을 받지 못하셨다면 스팸함도 확인해주세요.
+            </p>
+            <Link href="/login" className="btn btn-primary w-full">
+              로그인 페이지로
+            </Link>
           </div>
         )}
       </div>
