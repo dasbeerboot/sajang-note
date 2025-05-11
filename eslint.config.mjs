@@ -12,7 +12,7 @@ const compat = new FlatCompat({
 const eslintConfig = [
   ...compat.extends("next/core-web-vitals", "next/typescript"),
   {
-    ignorePatterns: [
+    ignores: [
       "supabase/**/*", // supabase 폴더 및 모든 하위 파일/폴더 제외
       // ... 다른 제외할 패턴들 ...
     ],
