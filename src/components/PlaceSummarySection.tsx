@@ -36,7 +36,7 @@ export default function PlaceSummarySection({ placeData }: PlaceSummarySectionPr
   const keywords = crawled_data?.review_analysis?.positive_keywords_from_reviews || [];
 
   return (
-    <section className={`mb-10 bg-base-200 rounded-xl shadow-lg transition-all duration-300 ease-in-out overflow-hidden ${isCollapsed ? 'p-3' : 'p-4 sm:p-6'}`}> 
+    <section className={`mb-10 bg-base-100 rounded-xl shadow-sm transition-all duration-300 ease-in-out overflow-hidden ${isCollapsed ? 'p-3' : 'p-4 sm:p-6'}`}> 
       <div className={`flex ${isCollapsed ? 'flex-row items-center justify-between' : 'flex-col'}`}> 
         
         {isCollapsed ? (

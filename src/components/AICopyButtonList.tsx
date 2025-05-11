@@ -23,38 +23,31 @@ export default function AICopyButtonList({
   isLoading = false
 }: AICopyButtonListProps) {
   return (
-    <section>
-      <h2 className="text-lg sm:text-xl font-semibold mb-5 text-center text-base-content">✨ AI로 만드는 마법같은 카피 ✨</h2>
-      <div className="flex flex-wrap justify-center gap-2 sm:gap-3">
-        {items.map((item) => {
-          const isActive = activeMenuId === item.id;
-          const isSaved = savedMenuIds.includes(item.id);
-          
-          return (
-            <button 
-              key={item.id} 
-              onClick={() => onSelectMenu(item.id)} 
-              className={`btn btn-sm rounded-md border ${
-                isActive 
-                  ? 'bg-primary text-primary-content border-primary' 
-                  : 'bg-base-100 text-base-content border-base-300 hover:bg-primary/10'
-              } ${
-                isSaved ? 'ring-2 ring-primary/30 ring-offset-1' : ''
-              } focus:outline-none focus:ring-1 focus:ring-primary focus:ring-offset-1 
-              group transition-colors duration-150 ease-in-out px-3 py-1.5 
-              min-w-[100px] sm:min-w-[120px] items-center animate-fadeIn`}
-              disabled={isLoading}
-            >
-              <div className="flex items-center gap-1">
-                <span className="text-xs font-medium tracking-wide">{item.label}</span>
-                {isSaved && !isActive && (
-                  <span className="badge badge-xs badge-accent"></span>
-                )}
-              </div>
-            </button>
-          );
-        })}
-      </div>
-    </section>
+    <div className="flex flex-wrap gap-2 my-5">
+      {items.map((item) => {
+        const isActive = activeMenuId === item.id;
+        const isSaved = savedMenuIds.includes(item.id);
+        
+        return (
+          <button 
+            key={item.id} 
+            onClick={() => onSelectMenu(item.id)} 
+            className={`px-4 py-1.5 rounded-md border text-md font-medium transition-all border-2 border-primary
+              ${isActive 
+                ? 'bg-primary text-white' 
+                : 'bg-primary/10 border-base-300 hover:bg-primary hover:text-white'
+              } ${isSaved ? 'ring-1 ring-primary/20 ring-inset' : ''}`}
+            disabled={isLoading}
+          >
+            <span className="flex items-center gap-1">
+              {item.label}
+              {isSaved && (
+                <span className={`w-2 h-2 rounded-full inline-block ${isActive ? 'bg-white' : 'bg-primary'}`} ></span>
+              )}
+            </span>
+          </button>
+        );
+      })}
+    </div>
   );
 } 

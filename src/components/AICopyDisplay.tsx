@@ -2,6 +2,8 @@
 
 import React from 'react';
 import { getCopyTypeLabel } from './AICopyForm';
+import { Check, Copy, PencilSimple } from '@phosphor-icons/react';
+import { useState } from 'react';
 
 interface AICopyDisplayProps {
   content: string;
@@ -16,6 +18,8 @@ export default function AICopyDisplay({
   onNewCopy,
   isSaved
 }: AICopyDisplayProps) {
+  const [copied, setCopied] = useState(false);
+
   // 대괄호로 감싸진 텍스트를 볼드체로 변환하는 함수
   const formatContent = () => {
     const parts: React.ReactNode[] = [];
@@ -38,7 +42,7 @@ export default function AICopyDisplay({
       
       // 대괄호 안의 텍스트를 볼드로 추가
       parts.push(
-        <strong key={match.index} className="text-primary-focus">
+        <strong key={match.index} className="text-primary">
           {match[0]}
         </strong>
       );
@@ -53,36 +57,59 @@ export default function AICopyDisplay({
     
     return parts;
   };
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(content);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
   
   return (
-    <div className="mt-6 p-4 border border-base-300 rounded-md bg-base-100 shadow-lg animate-fadeIn">
-      <div className="flex justify-between items-center mb-4">
-        <h3 className="font-semibold text-lg">
-          {getCopyTypeLabel(copyType)} {isSaved && '(저장됨)'}
-        </h3>
-        {isSaved && (
+    <div className="card bg-base-100 shadow-md mb-6 animate-fadeIn">
+      <div className="card-body">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="card-title text-base font-bold">
+            {getCopyTypeLabel(copyType)}
+            {isSaved && (
+              <span className="badge badge-sm badge-primary ml-2">저장됨</span>
+            )}
+          </h3>
+          {isSaved && (
+            <button 
+              onClick={onNewCopy}
+              className="btn btn-ghost btn-sm"
+              title="새로 만들기"
+            >
+              <PencilSimple size={18} />
+              <span className="ml-1 hidden sm:inline">새로 만들기</span>
+            </button>
+          )}
+        </div>
+        
+        <div className="border border-base-300 rounded-lg p-4 bg-base-100/50 mb-3">
+          <div className="prose prose-sm max-w-none whitespace-pre-wrap">
+            {formatContent()}
+          </div>
+        </div>
+        
+        <div className="flex justify-end gap-2">
           <button 
-            onClick={onNewCopy}
-            className="btn btn-sm btn-outline"
+            onClick={handleCopy}
+            className={`btn btn-sm ${copied ? 'btn-success' : 'btn-outline'}`}
           >
-            새로 만들기
+            {copied ? (
+              <>
+                <Check size={16} weight="bold" />
+                <span className="ml-1">복사 완료</span>
+              </>
+            ) : (
+              <>
+                <Copy size={16} />
+                <span className="ml-1">복사하기</span>
+              </>
+            )}
           </button>
-        )}
-      </div>
-      
-      <div className="prose max-w-none">
-        <pre className="whitespace-pre-wrap text-sm bg-base-200 p-3 rounded-md">
-          {formatContent()}
-        </pre>
-      </div>
-      
-      <div className="flex justify-end mt-4 gap-2">
-        <button 
-          onClick={() => navigator.clipboard.writeText(content)}
-          className="btn btn-sm btn-outline"
-        >
-          복사하기
-        </button>
+        </div>
       </div>
     </div>
   );

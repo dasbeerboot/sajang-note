@@ -75,7 +75,7 @@ export default function Home() {
           사장노트 <span className="text-2xl bg-gradient-to-r from-primary from-50% to-secondary to-50% bg-clip-text text-transparent">Beta</span>
         </h1>
         <p className="text-xl"><b>우리 매장 </b>당근 광고, 파워링크부터 쓰레드까지 <b>AI가 알아서</b></p>
-        <p className="text-xl mb-6">지금 <span className="text-primary">무료</span>로 사용해보세요</p>
+        <p className="text-xl mb-6">지금 <span className="text-primary font-bold">무료</span>로 사용해보세요</p>
         
         {/* 소셜프루프 배지 */}
         {/* <SocialProofBadge /> */}
