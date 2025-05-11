@@ -58,8 +58,12 @@ export async function POST(request: Request) {
     } else {
       return NextResponse.json({ error: '유효하지 않은 액션입니다.' }, { status: 400 });
     }
-  } catch (error: any) {
-    console.error('마이그레이션 오류:', error);
-    return NextResponse.json({ error: '마이그레이션 처리 중 오류가 발생했습니다.' }, { status: 500 });
+  } catch (error: unknown) {
+    let errorMessage = '알 수 없는 오류가 발생했습니다.';
+    if (error instanceof Error) {
+      errorMessage = error.message;
+    }
+    console.error('마이그레이션 오류:', errorMessage);
+    return NextResponse.json({ error: '마이그레이션 처리 중 오류가 발생했습니다.', details: errorMessage }, { status: 500 });
   }
 } 

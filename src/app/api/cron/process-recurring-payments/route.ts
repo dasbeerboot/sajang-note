@@ -24,21 +24,30 @@ export async function GET() {
     });
 
     return NextResponse.json(response.data);
-  } catch (error: any) {
+  } catch (error) {
     console.error('정기 결제 처리 중 오류:', error);
     
-    // 오류 응답 처리
-    if (error.response) {
+    if (axios.isAxiosError(error)) {
+      // AxiosError인 경우, response 객체가 있을 수 있음
+      const status = error.response?.status || 500;
+      const details = error.response?.data || error.message;
       return NextResponse.json(
-        { error: '정기 결제 처리 실패', details: error.response.data },
-        { status: error.response.status }
+        { error: '정기 결제 처리 실패', details },
+        { status }
+      );
+    } else if (error instanceof Error) {
+      // 일반 Error 객체인 경우
+      return NextResponse.json(
+        { error: '정기 결제 처리 실패', message: error.message },
+        { status: 500 }
+      );
+    } else {
+      // 알 수 없는 타입의 에러
+      return NextResponse.json(
+        { error: '정기 결제 처리 중 알 수 없는 오류가 발생했습니다.' },
+        { status: 500 }
       );
     }
-    
-    return NextResponse.json(
-      { error: '정기 결제 처리 실패', message: error.message },
-      { status: 500 }
-    );
   }
 }
 

@@ -121,19 +121,29 @@ export async function POST(request: Request) {
       message: '구독이 성공적으로 취소되었습니다.'
     });
     
-  } catch (error: any) {
+  } catch (error) {
     console.error('구독 취소 오류:', error);
     
-    // API 오류 응답 처리
-    if (error.response) {
-      return NextResponse.json({ 
-        error: '구독 취소 처리 중 오류가 발생했습니다.',
-        message: error.response.data?.resultMsg || error.message
-      }, { status: error.response.status || 500 });
+    if (axios.isAxiosError(error)) {
+      // AxiosError (나이스페이 API 호출 오류 등)
+      const status = error.response?.status || 500;
+      const message = error.response?.data?.resultMsg || error.response?.data?.message || error.message;
+      return NextResponse.json(
+        { error: '구독 취소 처리 중 오류가 발생했습니다.', message },
+        { status }
+      );
+    } else if (error instanceof Error) {
+      // 일반 Error 객체 (Supabase 오류, 커스텀 Error 등)
+      return NextResponse.json(
+        { error: '구독 취소 처리 중 오류가 발생했습니다.', message: error.message },
+        { status: 500 }
+      );
+    } else {
+      // 알 수 없는 타입의 에러
+      return NextResponse.json(
+        { error: '구독 취소 처리 중 알 수 없는 오류가 발생했습니다.' },
+        { status: 500 }
+      );
     }
-    
-    return NextResponse.json({ 
-      error: '구독 취소 처리 중 오류가 발생했습니다.' 
-    }, { status: 500 });
   }
 } 

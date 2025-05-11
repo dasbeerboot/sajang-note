@@ -114,9 +114,10 @@ export default function ProfilePage() {
       } : null);
       
       showToast('구독이 성공적으로 취소되었습니다.', 'success');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('구독 취소 오류:', error);
-      showToast(error.message || '구독 취소 중 오류가 발생했습니다.', 'error');
+      const errorMessage = error instanceof Error ? error.message : '구독 취소 중 알 수 없는 오류가 발생했습니다.';
+      showToast(errorMessage, 'error');
     }
   };
 

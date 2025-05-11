@@ -46,8 +46,9 @@ export default function SignupPage() {
       if (!response.ok) throw new Error(data.error || '인증번호 발송에 실패했습니다.');
       setCodeSent(true);
       showToast('인증번호가 발송되었습니다.', 'info');
-    } catch (error: any) {
-      setError(error.message);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : '인증번호 발송 중 알 수 없는 오류가 발생했습니다.';
+      setError(message);
     } finally {
       setIsVerifyingPhone(false);
     }
@@ -99,15 +100,16 @@ export default function SignupPage() {
       setStep(3);
       showToast('회원가입 요청이 완료되었습니다. 이메일을 확인해주세요.', 'success');
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[handleFinalSignup_CATCH_ERROR] Catch block error:', error);
-      setError(error.message || '회원가입 중 오류가 발생했습니다.');
+      const message = error instanceof Error ? error.message : '회원가입 중 알 수 없는 오류가 발생했습니다.';
+      setError(message);
     } finally {
       console.log('[handleFinalSignup] Finally block. Setting loading and isAttemptingFinalSignup to false.');
       setLoading(false);
       setIsAttemptingFinalSignup(false);
     }
-  }, [email, password, name, phone, phoneVerified, supabase, showToast, router, setLoading, setError, setStep, isAttemptingFinalSignup]);
+  }, [email, password, name, phone, phoneVerified, showToast, setLoading, setError, setStep, isAttemptingFinalSignup]);
 
   const handleVerifyCodeAndProceed = async () => {
     if (verificationCode.length !== 6) {
@@ -130,8 +132,9 @@ export default function SignupPage() {
       setPhoneVerified(true); // 전화번호 인증 성공 상태 설정
       setIsAttemptingFinalSignup(true); // 최종 가입 시도 상태 설정 -> useEffect 발동
 
-    } catch (error: any) {
-      setError(error.message);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : '인증번호 확인 중 알 수 없는 오류가 발생했습니다.';
+      setError(message);
     } finally {
       setIsVerifyingPhone(false);
     }
@@ -216,7 +219,7 @@ export default function SignupPage() {
             </div>
             <div>
               <label htmlFor="phone" className="label">
-                <span className="label-text">휴대폰 번호 ('-' 없이 입력)</span>
+                <span className="label-text">휴대폰 번호 (&apos;-&apos; 없이 입력)</span>
               </label>
               <input id="phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value.replace(/[^0-9]/g, ''))} className="input input-bordered w-full" required pattern="01[016789][0-9]{7,8}" placeholder="01012345678" />
             </div>

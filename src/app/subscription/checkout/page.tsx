@@ -196,9 +196,10 @@ export default function CheckoutPage() {
       });
       
       showToast('카드가 성공적으로 등록되었습니다.', 'success');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('카드 등록 오류:', error);
-      showToast(error.message || '카드 등록 중 오류가 발생했습니다.', 'error');
+      const message = error instanceof Error ? error.message : '카드 등록 중 알 수 없는 오류가 발생했습니다.';
+      showToast(message, 'error');
     } finally {
       setProcessingPayment(false);
     }
@@ -247,9 +248,10 @@ export default function CheckoutPage() {
       
       // 프로필 페이지로 리디렉션
       router.push('/profile');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('구독 시작 오류:', error);
-      showToast(error.message || '구독 시작 중 오류가 발생했습니다.', 'error');
+      const message = error instanceof Error ? error.message : '구독 시작 중 알 수 없는 오류가 발생했습니다.';
+      showToast(message, 'error');
     } finally {
       setProcessingPayment(false);
     }

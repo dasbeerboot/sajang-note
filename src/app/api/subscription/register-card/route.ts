@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { cookies } from 'next/headers';
 import crypto from 'crypto';
 import axios from 'axios';
 
@@ -134,19 +133,22 @@ export async function POST(request: Request) {
       cardNo: responseData.cardNo // 마스킹된 카드번호
     });
     
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('카드 등록 오류:', error);
     
-    // API 오류 응답 처리
-    if (error.response) {
-      return NextResponse.json({ 
-        error: '카드 등록 처리 중 오류가 발생했습니다.',
-        message: error.response.data?.resultMsg || error.message
-      }, { status: error.response.status || 500 });
+    let errorMessage = '카드 등록 처리 중 알 수 없는 오류가 발생했습니다.';
+    let errorStatus = 500;
+
+    if (axios.isAxiosError(error) && error.response) {
+      errorMessage = error.response.data?.resultMsg || error.message;
+      errorStatus = error.response.status || 500;
+    } else if (error instanceof Error) {
+      errorMessage = error.message;
     }
     
     return NextResponse.json({ 
-      error: '카드 등록 처리 중 오류가 발생했습니다.' 
-    }, { status: 500 });
+      error: '카드 등록 처리 중 오류가 발생했습니다.',
+      message: errorMessage 
+    }, { status: errorStatus });
   }
 } 

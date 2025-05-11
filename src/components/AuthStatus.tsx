@@ -1,15 +1,13 @@
 'use client';
 
 import { useAuth } from '@/contexts/AuthContext';
-import { useTheme } from '@/contexts/ThemeContext';
+import { useAuthModal } from '@/contexts/AuthModalContext';
 import Link from 'next/link';
 import Image from 'next/image';
 import { User } from '@phosphor-icons/react';
-import { useAuthModal } from '@/contexts/AuthModalContext';
 
 export default function AuthStatus() {
   const { user, loading, signOut } = useAuth();
-  const { theme } = useTheme();
   const { openAuthModal } = useAuthModal();
 
   if (loading) {
