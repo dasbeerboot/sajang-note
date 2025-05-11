@@ -43,7 +43,7 @@ export default function ProfileSetupPage() {
     };
     
     checkProfileStatus();
-  }, [user, authLoading, router]);
+  }, [user, authLoading, router, supabase]);
   
   // 카운트다운 타이머
   useEffect(() => {

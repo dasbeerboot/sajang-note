@@ -84,8 +84,8 @@ export async function POST(request: Request) {
       {
         cookies: {
           get(name: string) { return cookieStore.get(name)?.value; },
-          set(name: string, value: string, options: CookieOptions) { try { cookieStore.set({ name, value, ...options }); } catch (error) { /* 무시 */ } },
-          remove(name: string, options: CookieOptions) { try { cookieStore.set({ name, value: '', ...options }); } catch (error) { /* 무시 */ } },
+          set(name: string, value: string, options: CookieOptions) { try { cookieStore.set({ name, value, ...options }); } catch {} },
+          remove(name: string, options: CookieOptions) { try { cookieStore.set({ name, value: '', ...options }); } catch {} },
         },
       }
     );
@@ -252,10 +252,11 @@ export async function POST(request: Request) {
       };
       console.log(`[Firecrawl] Success for place_pk_id ${placePkId}. Markdown length: ${firecrawlData.markdown.length}.`);
 
-    } catch (e: any) {
+    } catch (e: unknown) {
+      const errorMsg = e instanceof Error ? e.message : '알 수 없는 오류';
       console.error(`[Firecrawl] API 호출/처리 중 심각한 오류 for place_pk_id ${placePkId}:`, e);
-      await supabaseAdmin.from('places').update({ status: 'failed', error_message: `URL 정보 수집 오류: ${e.message}`.substring(0, 255) }).eq('id', placePkId);
-      return NextResponse.json({ error: 'URL에서 정보를 가져오는 중 오류가 발생했습니다.', details: e.message }, { status: 500 });
+      await supabaseAdmin.from('places').update({ status: 'failed', error_message: `URL 정보 수집 오류: ${errorMsg}`.substring(0, 255) }).eq('id', placePkId);
+      return NextResponse.json({ error: 'URL에서 정보를 가져오는 중 오류가 발생했습니다.', details: errorMsg }, { status: 500 });
     }
 
     // 3. Supabase Edge Function 비동기 호출 (AI 분석 요청)
@@ -278,10 +279,11 @@ export async function POST(request: Request) {
       }
 
       console.log(`[Edge Function] Successfully invoked 'process-ai-analysis' for place_pk_id ${placePkId}`);
-    } catch (e: any) {
+    } catch (e: unknown) {
+      const errorMsg = e instanceof Error ? e.message : '알 수 없는 오류';
       console.error(`[Edge Function] Critical error during invoke for 'process-ai-analysis', place_pk_id ${placePkId}:`, e);
-      await supabaseAdmin.from('places').update({ status: 'failed', error_message: `AI 분석 서비스 호출 중 예외 발생: ${e.message}`.substring(0, 255) }).eq('id', placePkId);
-      return NextResponse.json({ error: '매장 정보 분석 시작 중 예기치 않은 오류가 발생했습니다.', details: e.message }, { status: 500 });
+      await supabaseAdmin.from('places').update({ status: 'failed', error_message: `AI 분석 서비스 호출 중 예외 발생: ${errorMsg}`.substring(0, 255) }).eq('id', placePkId);
+      return NextResponse.json({ error: '매장 정보 분석 시작 중 예기치 않은 오류가 발생했습니다.', details: errorMsg }, { status: 500 });
     }
     
     console.log(`[API End] Sending 202 Accepted for place_pk_id ${placePkId}`);
@@ -293,8 +295,9 @@ export async function POST(request: Request) {
       status: 'processing' 
     }, { status: 202 });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMsg = error instanceof Error ? error.message : '알 수 없는 오류';
     console.error('매장 등록/조회 API 전체 오류:', error);
-    return NextResponse.json({ error: '요청 처리 중 알 수 없는 오류가 발생했습니다.', details: error.message }, { status: 500 });
+    return NextResponse.json({ error: '요청 처리 중 알 수 없는 오류가 발생했습니다.', details: errorMsg }, { status: 500 });
   }
 } 

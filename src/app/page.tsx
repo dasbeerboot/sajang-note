@@ -8,15 +8,16 @@ import FeatureSection from '@/components/FeatureSection';
 import { useAuthModal } from '@/contexts/AuthModalContext';
 import LoginModalTrigger from '@/components/LoginModalTrigger';
 import { useToast } from '@/contexts/ToastContext';
+import AILoadingState from '@/components/AILoadingState';
 
 export default function Home() {
-  const { user, isProfileComplete } = useAuth();
+  const { user } = useAuth();
   const router = useRouter();
   const { openAuthModal } = useAuthModal();
   const { showToast } = useToast();
 
   const [isProcessing, setIsProcessing] = useState(false);
-  const [generatedContent, setGeneratedContent] = useState<any | null>(null);
+  const [generatedContent, setGeneratedContent] = useState<Record<string, string> | null>(null);
 
   const handleSearchSubmit = async (url: string) => {
     console.log(user)
@@ -54,7 +55,7 @@ export default function Home() {
 
       showToast(result.message || (result.isNew ? '매장이 등록되었습니다.' : '등록된 매장 정보를 가져왔습니다.'), 'success');
       
-      router.push(`/${result.placeId}`);
+      router.push(`/p/${result.placeId}`);
 
     } catch (error) {
       console.error('API 호출 오류:', error);
@@ -85,10 +86,7 @@ export default function Home() {
         
         {/* 로딩 표시 */}
         {isProcessing && (
-          <div className="mt-8 flex flex-col items-center">
-            <div className="loading loading-spinner loading-lg text-primary"></div>
-            <p className="mt-2">매장 정보 확인 중...</p>
-          </div>
+          <AILoadingState type="analysis" customMessage="매장 정보 분석 준비 중" />
         )}
       </section>
       

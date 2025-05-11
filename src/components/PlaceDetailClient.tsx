@@ -1,13 +1,14 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
-import { useRouter } from 'next/navigation';
 import PlaceSummarySection from '@/components/PlaceSummarySection';
 import AICopyButtonList from '@/components/AICopyButtonList';
 import AICopyForm from '@/components/AICopyForm';
 import AICopyDisplay from '@/components/AICopyDisplay';
 import { MagicWand } from '@phosphor-icons/react';
+import Link from 'next/link';
+import AILoadingState from '@/components/AILoadingState';
 
 interface PlaceData { 
   id: string;
@@ -17,7 +18,7 @@ interface PlaceData {
   place_address?: string;
   place_url?: string;
   status?: 'completed' | 'processing' | 'failed';
-  crawled_data?: any; 
+  crawled_data?: Record<string, unknown>; 
   error_message?: string | null;
   created_at: string;
   updated_at: string;
@@ -36,11 +37,16 @@ interface PlaceDetailClientProps {
   initialError?: string;
 }
 
+type UserType = {
+  id: string;
+  [key: string]: unknown;
+};
+
 const aiCopyMenuItemsData: CopyMenuItem[] = [
-  { id: 'danggn_title', label: '당근 광고 제목 생성' },
-  { id: 'danggn_post', label: '당근 가게 소식 생성' },
-  { id: 'powerlink_ad', label: '네이버 파워링크 광고문구 생성' },
-  { id: 'naver_place_description', label: '네이버 플레이스 광고문구 생성' },
+  { id: 'danggn_title', label: '당근 광고 제목' },
+  { id: 'danggn_post', label: '당근 가게 소식' },
+  { id: 'powerlink_ad', label: '네이버 파워링크' },
+  { id: 'naver_place_description', label: '플레이스 소개글' },
 ];
 
 export default function PlaceDetailClient({ 
@@ -48,24 +54,46 @@ export default function PlaceDetailClient({
   initialPlaceData,
   initialError 
 }: PlaceDetailClientProps) {
-  const router = useRouter();
   const [placeData, setPlaceData] = useState<PlaceData | null>(initialPlaceData || null);
   const [isLoadingPage, setIsLoadingPage] = useState(!initialPlaceData);
   const [errorPage, setErrorPage] = useState<string | null>(initialError || null);
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<UserType | null>(null);
 
   // AI 카피 관련 상태
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const [savedMenuIds, setSavedMenuIds] = useState<string[]>([]);
   const [isGeneratingCopy, setIsGeneratingCopy] = useState(false);
   const [generatedCopy, setGeneratedCopy] = useState<string | null>(null);
-  const [userPrompt, setUserPrompt] = useState<string>('');
   const [showNewCopyModal, setShowNewCopyModal] = useState(false);
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
+
+  // 저장된 카피 로드 함수
+  const loadSavedCopies = useCallback(async (placeId: string) => {
+    const { data, error } = await supabase
+      .from('ai_generated_copies')
+      .select('copy_type, generated_content')
+      .eq('place_id', placeId);
+      
+    if (error) {
+      console.error('저장된 카피 로드 오류:', error);
+      return;
+    }
+    
+    // 저장된 메뉴 ID 목록 업데이트
+    if (data && data.length > 0) {
+      const savedIds = data.map(item => item.copy_type);
+      setSavedMenuIds(savedIds);
+      
+      // localStorage에도 저장 (오프라인 접근용)
+      for (const item of data) {
+        localStorage.setItem(`copy_${placeId}_${item.copy_type}`, item.generated_content);
+      }
+    }
+  }, [supabase, setSavedMenuIds]);
 
   useEffect(() => {
     async function fetchData() {
@@ -79,7 +107,7 @@ export default function PlaceDetailClient({
 
       // 사용자 세션 확인
       const { data: { user: currentUser } } = await supabase.auth.getUser();
-      setUser(currentUser);
+      setUser(currentUser as UserType | null);
 
       if (!currentUser) {
         setErrorPage('로그인이 필요합니다.');
@@ -126,8 +154,8 @@ export default function PlaceDetailClient({
   // 사용자 정보 로드
   useEffect(() => {
     async function loadUser() {
-      const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      setUser(currentUser as UserType | null);
     }
     
     if (!user) {
@@ -135,36 +163,12 @@ export default function PlaceDetailClient({
     }
   }, [supabase, user]);
 
-  // 저장된 카피 목록 로드
+  // 저장된 카피 로드
   useEffect(() => {
     if (placeData) {
       loadSavedCopies(placeData.id);
     }
-  }, [placeData]);
-
-  // 저장된 카피 로드 함수
-  const loadSavedCopies = async (placeId: string) => {
-    const { data, error } = await supabase
-      .from('ai_generated_copies')
-      .select('copy_type, generated_content')
-      .eq('place_id', placeId);
-      
-    if (error) {
-      console.error('저장된 카피 로드 오류:', error);
-      return;
-    }
-    
-    // 저장된 메뉴 ID 목록 업데이트
-    if (data && data.length > 0) {
-      const savedIds = data.map(item => item.copy_type);
-      setSavedMenuIds(savedIds);
-      
-      // localStorage에도 저장 (오프라인 접근용)
-      for (const item of data) {
-        localStorage.setItem(`copy_${placeId}_${item.copy_type}`, item.generated_content);
-      }
-    }
-  };
+  }, [placeData, loadSavedCopies]);
 
   // 메뉴 선택 처리
   const handleSelectMenu = async (copyType: string) => {
@@ -189,34 +193,30 @@ export default function PlaceDetailClient({
         
       if (!error && data) {
         setGeneratedCopy(data.generated_content);
-        setUserPrompt(data.user_prompt || '');
       } else {
         // 에러 발생 시 저장된 목록에서 제거
         setSavedMenuIds(prev => prev.filter(id => id !== copyType));
         setGeneratedCopy(null);
-        setUserPrompt('');
       }
     } else {
       // 저장된 카피가 없으면 초기화
       setGeneratedCopy(null);
-      setUserPrompt('');
     }
   };
 
   // 카피 생성 처리
-  const handleGenerateCopy = async (userPromptInput: string) => {
+  const handleGenerateCopy = async (userPromptValue: string) => {
     if (!placeData || !activeMenuId) return;
     
     setIsGeneratingCopy(true);
     setGeneratedCopy(null);
-    setUserPrompt(userPromptInput);
 
     try {
       const { data, error } = await supabase.functions.invoke('generate-ai-copy', {
         body: { 
           placeId: placeData.id,
           copyType: activeMenuId,
-          userPrompt: userPromptInput || null
+          userPrompt: userPromptValue || null
         }
       });
 
@@ -228,7 +228,7 @@ export default function PlaceDetailClient({
         setGeneratedCopy(generatedContent);
         
         // 생성된 카피 저장
-        await saveCopy(placeData.id, activeMenuId, userPromptInput, generatedContent);
+        await saveCopy(placeData.id, activeMenuId, userPromptValue, generatedContent);
         
         // 저장된 메뉴 목록 업데이트
         if (!savedMenuIds.includes(activeMenuId)) {
@@ -240,9 +240,10 @@ export default function PlaceDetailClient({
       } else {
         setGeneratedCopy('알 수 없는 응답 형식입니다.');
       }
-    } catch (e: any) {
-      alert('카피 생성 중 예외가 발생했습니다: ' + e.message);
-      setGeneratedCopy('예외: ' + e.message);
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : '알 수 없는 에러가 발생했습니다';
+      alert('카피 생성 중 예외가 발생했습니다: ' + errorMsg);
+      setGeneratedCopy('예외: ' + errorMsg);
     } finally {
       setIsGeneratingCopy(false);
     }
@@ -276,14 +277,13 @@ export default function PlaceDetailClient({
   // 새 카피 생성 확인 함수
   const handleConfirmNewCopy = () => {
     setGeneratedCopy(null);
-    setUserPrompt('');
     setShowNewCopyModal(false);
   };
 
   if (isLoadingPage) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
-        <div className="loading loading-spinner loading-lg"></div>
+        <AILoadingState type="analysis" customMessage="매장 정보 불러오는 중" />
       </div>
     );
   }
@@ -306,7 +306,7 @@ export default function PlaceDetailClient({
             <div className="text-xs">{errorPage}</div>
           </div>
         </div>
-        <a href="/" className="btn btn-primary mt-4">홈으로 돌아가기</a>
+        <Link href="/" className="btn btn-primary mt-4">홈으로 돌아가기</Link>
       </div>
     );
   }
@@ -324,8 +324,7 @@ export default function PlaceDetailClient({
     return (
       <div className="container mx-auto p-4 min-h-screen flex flex-col items-center justify-center">
         <h1 className="text-xl font-semibold mb-3">{placeData.place_name || '매장 정보'} 처리 중...</h1>
-        <p className="mb-2 text-center text-sm text-base-content/80">AI가 매장 정보를 분석하고 있습니다.<br/>새로고침하거나 잠시 후 'My 플레이스'에서 확인해주세요.</p>
-        <span className="loading loading-lg loading-spinner text-primary mt-4"></span>
+        <AILoadingState type="analysis" />
       </div>
     );
   }
@@ -340,7 +339,7 @@ export default function PlaceDetailClient({
             <div className="text-xs break-all">오류: {placeData.error_message || '알 수 없는 오류.'}</div>
           </div>
         </div>
-        <p className="mt-4 text-sm text-center max-w-md text-base-content/80">정보 수집/분석 중 문제가 발생했습니다. 'My 플레이스'에서 삭제 후 다시 시도하거나 지원팀에 문의해주세요.</p>
+        <p className="mt-4 text-sm text-center max-w-md text-base-content/80">정보 수집/분석 중 문제가 발생했습니다. &apos;My 플레이스&apos;에서 삭제 후 다시 시도하거나 지원팀에 문의해주세요.</p>
       </div>
     );
   }
@@ -415,6 +414,9 @@ export default function PlaceDetailClient({
           <div className="modal-backdrop" onClick={() => setShowNewCopyModal(false)}></div>
         </div>
       )}
+      
+      {/* AI 카피 생성 중 로딩 인디케이터 */}
+      {isGeneratingCopy && <AILoadingState type="copy" />}
     </div>
   );
 } 
