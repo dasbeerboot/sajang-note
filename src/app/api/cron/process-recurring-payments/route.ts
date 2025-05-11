@@ -59,4 +59,4 @@ export async function GET(request: Request) {
 
 // 헤더 설정
 export const dynamic = 'force-dynamic';
-export const maxDuration = 300; // 최대 실행 시간 5분 
+export const maxDuration = 60; // 최대 실행 시간을 60초로 변경 
