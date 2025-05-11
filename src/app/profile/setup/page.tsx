@@ -3,12 +3,11 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/lib/supabase';
 import { useToast } from '@/contexts/ToastContext';
 
 export default function ProfileSetupPage() {
   const router = useRouter();
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, supabase } = useAuth();
   const { showToast } = useToast();
   
   const [fullName, setFullName] = useState('');
@@ -38,8 +37,8 @@ export default function ProfileSetupPage() {
           setFullName(data.full_name);
         }
       } else if (!authLoading && !user) {
-        // 로그인하지 않은 사용자는 로그인 페이지로
-        router.push('/login');
+        // 로그인하지 않은 사용자는 홈페이지로
+        router.push('/?openLoginModal=true');
       }
     };
     

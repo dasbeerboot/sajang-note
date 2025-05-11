@@ -4,8 +4,8 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
 import { CreditCard, CheckCircle, ArrowLeft } from '@phosphor-icons/react';
+import { useAuthModal } from '@/contexts/AuthModalContext';
 
 interface SubscriptionPlan {
   id: string;
@@ -17,9 +17,10 @@ interface SubscriptionPlan {
 }
 
 export default function CheckoutPage() {
-  const { user, loading } = useAuth();
+  const { user, loading, supabase } = useAuth();
   const { showToast } = useToast();
   const router = useRouter();
+  const { openAuthModal } = useAuthModal();
   
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
@@ -66,7 +67,7 @@ export default function CheckoutPage() {
     }
     
     loadPlans();
-  }, [showToast]);
+  }, [supabase, showToast]);
   
   // 사용자 카드 정보 확인
   useEffect(() => {
@@ -97,14 +98,7 @@ export default function CheckoutPage() {
     if (user) {
       checkCardInfo();
     }
-  }, [user]);
-  
-  // 로그인하지 않은 경우 로그인 페이지로 리디렉션
-  useEffect(() => {
-    if (!loading && !user) {
-      router.push('/login');
-    }
-  }, [user, loading, router]);
+  }, [user, supabase]);
   
   // 카드 정보 입력 핸들러
   const handleCardInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -129,6 +123,10 @@ export default function CheckoutPage() {
   
   // 카드 등록 처리
   const handleRegisterCard = async () => {
+    if (!user) {
+      openAuthModal();
+      return;
+    }
     try {
       setProcessingPayment(true);
       
@@ -167,7 +165,6 @@ export default function CheckoutPage() {
         return;
       }
       
-      // 사용자 토큰 가져오기
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) {
         throw new Error('인증 토큰을 가져올 수 없습니다.');
@@ -207,6 +204,11 @@ export default function CheckoutPage() {
   
   // 구독 시작 처리
   const handleStartSubscription = async () => {
+    if (!user) {
+      openAuthModal();
+      return;
+    }
+
     if (!selectedPlan) {
       showToast('구독 플랜을 선택해주세요.', 'error');
       return;
@@ -220,7 +222,6 @@ export default function CheckoutPage() {
     try {
       setProcessingPayment(true);
       
-      // 사용자 토큰 가져오기
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) {
         throw new Error('인증 토큰을 가져올 수 없습니다.');
@@ -410,7 +411,7 @@ export default function CheckoutPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                 <div className="form-control w-full">
                   <label className="label">
-                    <span className="label-text">생년월일 또는 사업자번호</span>
+                    <span className="label-text">생년월일(YYMMDD) 또는 사업자번호</span>
                   </label>
                   <input
                     type="text"

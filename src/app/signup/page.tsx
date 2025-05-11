@@ -1,12 +1,15 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/lib/supabase';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
 import { useToast } from '@/contexts/ToastContext';
 import { CheckCircle } from '@phosphor-icons/react';
 
 export default function SignupPage() {
+  const { supabase } = useAuth();
+  const router = useRouter();
   const { showToast } = useToast();
   
   // Step 1: 기본 정보 입력
@@ -107,7 +110,7 @@ export default function SignupPage() {
       setLoading(false);
       setIsAttemptingFinalSignup(false);
     }
-  }, [email, password, name, phone, phoneVerified, showToast, setLoading, setError, setStep, isAttemptingFinalSignup]);
+  }, [email, password, name, phone, phoneVerified, showToast, setLoading, setError, setStep, isAttemptingFinalSignup, supabase]);
 
   const handleVerifyCodeAndProceed = async () => {
     if (verificationCode.length !== 6) {

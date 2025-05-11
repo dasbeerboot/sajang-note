@@ -3,12 +3,11 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
-import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { User, CreditCard, CheckCircle, XCircle } from '@phosphor-icons/react';
 
-type SubscriptionStatus = 'active' | 'canceled' | 'none';
+type SubscriptionStatus = 'active' | 'canceled' | 'none' | 'free';
 
 interface ProfileData {
   id: string;
@@ -22,7 +21,7 @@ interface ProfileData {
 }
 
 export default function ProfilePage() {
-  const { user, loading } = useAuth();
+  const { user, loading, supabase } = useAuth();
   const { showToast } = useToast();
   const router = useRouter();
   
@@ -61,7 +60,7 @@ export default function ProfilePage() {
   // 로그인하지 않은 경우 로그인 페이지로 리디렉션
   useEffect(() => {
     if (!loading && !user) {
-      router.push('/login');
+      router.push('/');
     }
   }, [user, loading, router]);
   

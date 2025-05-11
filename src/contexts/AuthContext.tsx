@@ -1,11 +1,13 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
-import { supabase } from '@/lib/supabase';
-import { Session, User } from '@supabase/supabase-js';
+import { getSupabaseBrowserClient } from '@/lib/supabase';
+import { Session, User, SupabaseClient } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
 import { useToast } from './ToastContext';
 import axios from 'axios';
+
+type SubscriptionStatusValue = 'active' | 'canceled' | 'none' | 'free'; // 'free' 추가 또는 기존 상태와 통합 고려
 
 type AuthContextType = {
   session: Session | null;
@@ -13,34 +15,39 @@ type AuthContextType = {
   loading: boolean;
   signOut: () => Promise<void>;
   isProfileComplete: boolean;
+  subscriptionStatus: SubscriptionStatusValue | null; // 추가
+  supabase: SupabaseClient; // supabase 인스턴스를 컨텍스트에 추가 (선택적이지만 편리할 수 있음)
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const [supabase] = useState(() => getSupabaseBrowserClient()); // 컴포넌트 마운트 시 한 번만 클라이언트 생성
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [isProfileComplete, setIsProfileComplete] = useState(false);
+  const [subscriptionStatus, setSubscriptionStatus] = useState<SubscriptionStatusValue | null>(null); // 추가
   const router = useRouter();
   const { showToast } = useToast();
   
   const fetchAndSetUserProfile = useCallback(async (currentSession: Session | null) => {
     if (currentSession?.user) {
       setUser(currentSession.user);
-      // 프로필 기본 정보 확인 (phone_verified, full_name 등)
       try {
         const { data: profile, error } = await supabase
           .from('profiles')
-          .select('phone_verified, full_name, phone, email') // phone, email도 가져와서 비교/업데이트
+          .select('phone_verified, full_name, phone, email, subscription_status') 
           .eq('id', currentSession.user.id)
           .single();
 
-        if (error && error.code !== 'PGRST116') { // PGRST116: row not found, 이건 정상일 수 있음
+        if (error && error.code !== 'PGRST116') { 
           setIsProfileComplete(false);
-        } else {
-          const isComplete = !!(profile && profile.phone_verified && profile.full_name);
+          setSubscriptionStatus(null); 
+        } else if (profile) { // profile이 null이 아닌 경우에만 접근
+          const isComplete = !!(profile.phone_verified && profile.full_name);
           setIsProfileComplete(isComplete);
+          setSubscriptionStatus(profile.subscription_status as SubscriptionStatusValue); 
 
           // 카카오 로그인 사용자이고, provider_token이 있으며, 프로필 정보가 부족할 경우 카카오 API 호출
           if (currentSession.user.app_metadata.provider === 'kakao' && currentSession.provider_token) {
@@ -114,13 +121,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } catch (profileError) {
          console.error('[AuthContext] Outer error fetching profile:', profileError);
          setIsProfileComplete(false);
+         setSubscriptionStatus(null); // 오류 시 초기화
       }
     } else {
       setUser(null);
       setIsProfileComplete(false);
+      setSubscriptionStatus(null); // 사용자 없으면 구독 상태도 초기화
     }
     setLoading(false);
-  }, []);
+  }, [supabase]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
@@ -136,7 +145,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       authListener.subscription.unsubscribe();
     };
-  }, [fetchAndSetUserProfile]);
+  }, [supabase, fetchAndSetUserProfile]);
 
   const signOut = async () => {
     try {
@@ -146,6 +155,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(null);
         // setSession(null); // session 상태는 onAuthStateChange 리스너에 의해 업데이트 될 것임
         setIsProfileComplete(false);
+        setSubscriptionStatus(null); // 로그아웃 시 구독 상태 초기화
         if (router && typeof router.push === 'function') router.push('/');
         return;
       }
@@ -168,6 +178,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(null);
       setSession(null);
       setIsProfileComplete(false);
+      setSubscriptionStatus(null); // 로그아웃 시 구독 상태 초기화
       showToast('로그아웃 되었습니다.', 'success');
       if (router && typeof router.push === 'function') router.push('/');
 
@@ -178,6 +189,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(null);
       setSession(null);
       setIsProfileComplete(false);
+      setSubscriptionStatus(null); // 오류 시에도 구독 상태 초기화
       if (router && typeof router.push === 'function') { 
           router.push('/');
       } else {
@@ -194,6 +206,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loading,
     signOut,
     isProfileComplete,
+    subscriptionStatus, // 추가
+    supabase, // supabase 인스턴스 컨텍스트 통해 제공
   };
 
   return (

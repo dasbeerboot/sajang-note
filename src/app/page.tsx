@@ -7,41 +7,61 @@ import SearchForm from '@/components/SearchForm';
 import FeatureSection from '@/components/FeatureSection';
 import { useAuthModal } from '@/contexts/AuthModalContext';
 import LoginModalTrigger from '@/components/LoginModalTrigger';
+import { useToast } from '@/contexts/ToastContext';
 
 export default function Home() {
   const { user, isProfileComplete } = useAuth();
   const router = useRouter();
   const { openAuthModal } = useAuthModal();
+  const { showToast } = useToast();
 
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [generatedContent, setGeneratedContent] = useState<{
-    carrotTitle: string;
-    carrotContent: string;
-    powerlink: string;
-    placeDesc: string;
-    threadPost: string;
-  } | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [generatedContent, setGeneratedContent] = useState<any | null>(null);
 
-  const handleSearchSubmit = async () => {
+  const handleSearchSubmit = async (url: string) => {
+    console.log(user)
     if (!user) {
       openAuthModal();
       return;
     }
-    if (!isProfileComplete) {
-      router.push('/profile/setup');
+
+    if (!url.trim()) {
+      showToast('URL을 입력해주세요.', 'error');
       return;
     }
-    setIsGenerating(true);
-    setTimeout(() => {
-      setIsGenerating(false);
-      setGeneratedContent({
-        carrotTitle: "우리동네 커피 맛집, 오늘 방문하면 아메리카노 1+1!",
-        carrotContent: "안녕하세요 이웃님들! 저희 카페가 오픈 1주년을 맞이했어요. 오늘 방문하시는 모든 분들께 아메리카노 1+1 이벤트를 진행합니다. 특별히 준비한 수제 쿠키도 무료로 드려요! 많은 관심 부탁드립니다.",
-        powerlink: "우리동네 커피 맛집 | 오픈 1주년 기념 이벤트 | 아메리카노 1+1 행사중",
-        placeDesc: "편안한 분위기에서 즐기는 프리미엄 원두 커피. 수제 디저트와 함께 특별한 시간을 선사합니다. 매장 내 무료 와이파이, 콘센트 완비.",
-        threadPost: "☕️ 오픈 1주년을 맞이한 저희 카페에서 특별한 이벤트를 준비했습니다!\n\n✨ 아메리카노 1+1\n✨ 수제 쿠키 무료 증정\n✨ 멤버십 가입 시 추가 할인\n\n오늘 하루만 진행되는 이벤트, 놓치지 마세요! 여러분의 방문을 기다립니다. #카페 #이벤트 #커피맛집"
+
+    setIsProcessing(true);
+    setGeneratedContent(null);
+
+    try {
+      const response = await fetch('/api/places/register-or-get', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ url }),
       });
-    }, 2000);
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        showToast(result.error || '매장 정보 처리 중 오류가 발생했습니다.', 'error');
+        if (result.errorCode === 'LIMIT_EXCEEDED') {
+          console.warn('매장 등록 한도 초과');
+        }
+        return;
+      }
+
+      showToast(result.message || (result.isNew ? '매장이 등록되었습니다.' : '등록된 매장 정보를 가져왔습니다.'), 'success');
+      
+      router.push(`/${result.placeId}`);
+
+    } catch (error) {
+      console.error('API 호출 오류:', error);
+      showToast('요청 처리 중 예기치 않은 오류가 발생했습니다.', 'error');
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   return (
@@ -54,7 +74,8 @@ export default function Home() {
         <h1 className="text-5xl font-bold mb-2">
           사장노트 <span className="text-2xl bg-gradient-to-r from-primary from-50% to-secondary to-50% bg-clip-text text-transparent">Beta</span>
         </h1>
-        <p className="text-xl mb-6"><b>우리 매장 </b>당근 광고, 파워링크부터 쓰레드까지 <b>AI가 알아서</b></p>
+        <p className="text-xl"><b>우리 매장 </b>당근 광고, 파워링크부터 쓰레드까지 <b>AI가 알아서</b></p>
+        <p className="text-xl mb-6">지금 <span className="text-primary">무료</span>로 사용해보세요</p>
         
         {/* 소셜프루프 배지 */}
         {/* <SocialProofBadge /> */}
@@ -63,10 +84,10 @@ export default function Home() {
         <SearchForm onSubmit={handleSearchSubmit} />
         
         {/* 로딩 표시 */}
-        {isGenerating && (
+        {isProcessing && (
           <div className="mt-8 flex flex-col items-center">
             <div className="loading loading-spinner loading-lg text-primary"></div>
-            <p className="mt-2">콘텐츠 생성 중...</p>
+            <p className="mt-2">매장 정보 확인 중...</p>
           </div>
         )}
       </section>

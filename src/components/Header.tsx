@@ -10,8 +10,8 @@ export default function Header() {
       <div className="container mx-auto flex justify-between items-center">
         <Link href="/" className="text-xl font-bold">사장노트</Link>
         <div className="flex items-center gap-4">
-          <ThemeToggle />
           <AuthStatus />
+          <ThemeToggle />
         </div>
       </div>
     </header>
