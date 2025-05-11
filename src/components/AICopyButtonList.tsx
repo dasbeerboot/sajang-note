@@ -32,7 +32,7 @@ export default function AICopyButtonList({
           <button 
             key={item.id} 
             onClick={() => onSelectMenu(item.id)} 
-            className={`px-4 py-1.5 rounded-md border text-md font-medium transition-all border-2 border-primary
+            className={`px-4 py-1.5 rounded-md border text-md font-medium transition-all border-2 border-primary cursor-pointer
               ${isActive 
                 ? 'bg-primary text-white' 
                 : 'bg-primary/10 border-base-300 hover:bg-primary hover:text-white'

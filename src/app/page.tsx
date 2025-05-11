@@ -20,7 +20,6 @@ export default function Home() {
   const [generatedContent, setGeneratedContent] = useState<Record<string, string> | null>(null);
 
   const handleSearchSubmit = async (url: string) => {
-    console.log(user)
     if (!user) {
       openAuthModal();
       return;
