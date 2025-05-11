@@ -1,16 +1,16 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState, Suspense } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import SearchForm from '@/components/SearchForm';
 import FeatureSection from '@/components/FeatureSection';
 import { useAuthModal } from '@/contexts/AuthModalContext';
+import LoginModalTrigger from '@/components/LoginModalTrigger';
 
 export default function Home() {
   const { user, isProfileComplete } = useAuth();
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { openAuthModal } = useAuthModal();
 
   const [isGenerating, setIsGenerating] = useState(false);
@@ -21,15 +21,6 @@ export default function Home() {
     placeDesc: string;
     threadPost: string;
   } | null>(null);
-
-  useEffect(() => {
-    if (searchParams.get('openLoginModal') === 'true') {
-      openAuthModal();
-      const nextURL = new URL(window.location.href);
-      nextURL.searchParams.delete('openLoginModal');
-      router.replace(nextURL.pathname + nextURL.search, { scroll: false });
-    }
-  }, [searchParams, openAuthModal, router]);
 
   const handleSearchSubmit = async () => {
     if (!user) {
@@ -55,6 +46,9 @@ export default function Home() {
 
   return (
     <div className="container mx-auto px-4 py-8">
+      <Suspense fallback={null}>
+        <LoginModalTrigger />
+      </Suspense>
       {/* 히어로 섹션 */}
       <section className="text-center py-20">
         <h1 className="text-5xl font-bold mb-2">

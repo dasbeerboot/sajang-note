@@ -4,17 +4,23 @@ import axios from 'axios';
 // 환경 변수
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const CRON_SECRET = process.env.CRON_SECRET;
 
 // Supabase Edge Function URL
 const EDGE_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/process-recurring-payments`;
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    // Vercel cron job의 User-Agent 확인
-    // 실제 프로덕션에서는 이 검증을 사용할 수 있습니다
-    // if (!req.headers.get('user-agent')?.includes('vercel-cron')) {
-    //   return NextResponse.json({ error: '인증되지 않은 요청' }, { status: 401 });
-    // }
+    // CRON_SECRET 검증
+    const authHeader = request.headers.get('authorization');
+    if (!CRON_SECRET) {
+      // CRON_SECRET 환경 변수가 설정되지 않은 경우 서버 내부 오류로 처리
+      console.error('CRON_SECRET이 서버에 설정되지 않았습니다.');
+      return NextResponse.json({ error: '서버 설정 오류' }, { status: 500 });
+    }
+    if (!authHeader || authHeader !== `Bearer ${CRON_SECRET}`) {
+      return NextResponse.json({ error: '인증되지 않은 요청' }, { status: 401 });
+    }
 
     // Supabase Edge Function 호출
     const response = await axios.get(EDGE_FUNCTION_URL, {

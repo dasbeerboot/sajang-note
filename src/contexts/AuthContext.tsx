@@ -140,17 +140,51 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     try {
+      // 현재 세션이 있는지 먼저 확인 (더 확실하게는 await supabase.auth.getSession() 사용)
+      if (!session) { 
+        console.warn('[AuthContext] 이미 로그아웃된 상태이거나 세션이 없습니다.');
+        setUser(null);
+        // setSession(null); // session 상태는 onAuthStateChange 리스너에 의해 업데이트 될 것임
+        setIsProfileComplete(false);
+        if (router && typeof router.push === 'function') router.push('/');
+        return;
+      }
+
       const { error } = await supabase.auth.signOut();
-      if (error) throw error;
+      
+      if (error) {
+        if (error.name === 'AuthSessionMissingError') {
+          console.warn('[AuthContext] 로그아웃 시 서버에 이미 세션이 없었습니다:', error.message);
+          // 이 경우, 이미 서버 세션은 없으므로 클라이언트 상태만 정리
+        } else {
+          throw error; // 다른 종류의 에러는 그대로 throw
+        }
+      }
+      
+      // supabase.auth.signOut()이 성공했거나 AuthSessionMissingError인 경우,
+      // onAuthStateChange 리스너가 session과 user를 null로 설정할 것이므로,
+      // 여기서는 명시적으로 setUser(null), setSession(null)을 호출할 필요가 없을 수 있습니다.
+      // 하지만 확실한 초기화를 위해 남겨두거나, 리스너 동작에 따라 조정할 수 있습니다.
       setUser(null);
       setSession(null);
       setIsProfileComplete(false);
       showToast('로그아웃 되었습니다.', 'success');
-      router.push('/');
-      setTimeout(() => { window.location.href = '/'; }, 100);
-    } catch (error) {
+      if (router && typeof router.push === 'function') router.push('/');
+
+    } catch (error: unknown) {
       console.error('로그아웃 오류:', error);
       showToast('로그아웃 중 오류가 발생했습니다.', 'error');
+      
+      setUser(null);
+      setSession(null);
+      setIsProfileComplete(false);
+      if (router && typeof router.push === 'function') { 
+          router.push('/');
+      } else {
+          if (typeof window !== 'undefined') {
+              window.location.href = '/';
+          }
+      }
     }
   };
 

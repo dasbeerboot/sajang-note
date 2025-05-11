@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { GoogleLogo, Envelope } from '@phosphor-icons/react';
-import { signInWithPassword, signInWithGoogle, signInWithKakao } from '@/lib/auth';
+import { Envelope } from '@phosphor-icons/react';
+import { signInWithPassword, signInWithKakao } from '@/lib/auth';
 import { useAuthModal } from '@/contexts/AuthModalContext';
 
 interface LoginModalProps {
@@ -38,19 +38,19 @@ export default function LoginModal({ modalId }: LoginModalProps) {
     }
   };
 
-  const handleGoogleLogin = async () => {
-    setLoading(true);
-    try {
-      const { error } = await signInWithGoogle();
+  // const handleGoogleLogin = async () => {
+  //   setLoading(true);
+  //   try {
+  //     const { error } = await signInWithGoogle();
       
-      if (error) throw error;
-    } catch (error: Error | unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Google 로그인 오류';
-      setError(errorMessage);
-    } finally {
-      setLoading(false);
-    }
-  };
+  //     if (error) throw error;
+  //   } catch (error: Error | unknown) {
+  //     const errorMessage = error instanceof Error ? error.message : 'Google 로그인 오류';
+  //     setError(errorMessage);
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
 
   const handleKakaoLogin = async () => {
     setLoading(true);
@@ -92,7 +92,7 @@ export default function LoginModal({ modalId }: LoginModalProps) {
               사장노트의 모든 기능을 이용하려면 로그인이 필요합니다.
             </p>
 
-            <div className="flex flex-col gap-3 w-full max-w-xs mx-auto mb-1">
+            {/* <div className="flex flex-col gap-3 w-full max-w-xs mx-auto mb-1">
               <button
                 onClick={handleGoogleLogin}
                 disabled={loading}
@@ -101,7 +101,7 @@ export default function LoginModal({ modalId }: LoginModalProps) {
                 <GoogleLogo size={24} weight="bold" />
                 구글로 계속하기
               </button>
-            </div>
+            </div> */}
             
             <div className="flex flex-col gap-3 w-full max-w-xs mx-auto">
               <button
