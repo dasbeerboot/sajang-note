@@ -9,6 +9,7 @@ import AICopyDisplay from '@/components/AICopyDisplay';
 import { MagicWand } from '@phosphor-icons/react';
 import Link from 'next/link';
 import AILoadingState from '@/components/AILoadingState';
+import { useRouter } from 'next/navigation';
 
 interface BasicInfo {
   representative_images?: string[];
@@ -82,6 +83,7 @@ export default function PlaceDetailClient({
   initialPlaceData,
   initialError 
 }: PlaceDetailClientProps) {
+  const router = useRouter();
   const [placeData, setPlaceData] = useState<PlaceData | null>(initialPlaceData || null);
   const [isLoadingPage, setIsLoadingPage] = useState(!initialPlaceData);
   const [errorPage, setErrorPage] = useState<string | null>(initialError || null);
@@ -392,7 +394,15 @@ export default function PlaceDetailClient({
             <div className="text-xs break-all">오류: {placeData.error_message || '알 수 없는 오류.'}</div>
           </div>
         </div>
-        <p className="mt-4 text-sm text-center max-w-md text-base-content/80">정보 수집/분석 중 문제가 발생했습니다. &apos;My 플레이스&apos;에서 삭제 후 다시 시도하거나 지원팀에 문의해주세요.</p>
+        <p className="mt-4 text-sm text-center max-w-md text-base-content/80">정보 수집/분석 중 문제가 발생했습니다. <br/><span className="text-primary font-bold">내 매장 관리 </span>메뉴에서 삭제 후 다시 시도하거나 지원팀에 문의해주세요.</p>
+        <div className="mt-6 text-center">
+              <button 
+                className="btn btn-primary"
+                onClick={() => router.push('/my-places')}
+              >
+                내 매장 관리하기
+              </button>
+            </div>
       </div>
     );
   }

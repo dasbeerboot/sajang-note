@@ -208,7 +208,7 @@ export default function ProfilePage() {
                   </div>
                   <button 
                     onClick={handleCancelSubscription}
-                    className="btn btn-outline btn-error btn-md w-full sm:w-auto"
+                    className="btn btn-outline btn-sm w-full sm:w-auto"
                   >
                     구독 취소하기
                   </button>

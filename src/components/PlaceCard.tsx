@@ -1,6 +1,6 @@
 import React from 'react';
 import { useRouter } from 'next/navigation';
-import { Calendar, Storefront, PencilSimple, Trash, MagnifyingGlass, ChatCircle } from '@phosphor-icons/react';
+import { Calendar, Storefront, Trash, MagnifyingGlass, ChatCircle } from '@phosphor-icons/react';
 import Image from 'next/image';
 
 interface PlaceData {
@@ -20,9 +20,7 @@ interface PlaceData {
 
 interface PlaceCardProps {
   place: PlaceData;
-  canChange?: boolean;
   isProcessing?: boolean;
-  onChangeClick?: (place: PlaceData) => void;
   onDeleteClick?: (place: PlaceData) => void;
   showActions?: boolean;
   className?: string;
@@ -30,9 +28,7 @@ interface PlaceCardProps {
 
 export default function PlaceCard({
   place,
-  canChange = true,
   isProcessing = false,
-  onChangeClick,
   onDeleteClick,
   showActions = true,
   className = ''
@@ -127,18 +123,6 @@ export default function PlaceCard({
                         매장 페이지 보기
                       </button>
                     </li>
-                    {onChangeClick && (
-                      <li>
-                        <button 
-                          onClick={(e) => { e.stopPropagation(); onChangeClick(place); }}
-                          disabled={!canChange || place.status === 'processing' || isProcessing}
-                          className={!canChange || place.status === 'processing' || isProcessing ? 'text-base-content/40' : ''}
-                        >
-                          <PencilSimple size={18} />
-                          {place.status === 'processing' ? '처리 중...' : '다른 매장으로 변경'}
-                        </button>
-                      </li>
-                    )}
                     {onDeleteClick && (
                       <li>
                         <button 

@@ -137,8 +137,31 @@ export default function Home() {
         return;
       }
 
+      // Gemini API 오류인 경우 특별 처리
+      if (result.isGeminiApiError) {
+        showToast('일시적인 AI 서비스 오류가 발생했습니다. 잠시 후 다시 시도해주세요. 문제가 지속되면 관리자에게 문의하세요.', 'warning');
+        setShowSearchForm(false);
+        return;
+      }
+
       showToast(result.message || (result.isNew ? '매장이 등록되었습니다.' : '등록된 매장 정보를 가져왔습니다.'), 'success');
       setShowSearchForm(false);
+      
+      // 매장 목록 다시 로드
+      const fetchUpdatedData = async () => {
+        try {
+          const response = await fetch('/api/my-places');
+          if (response.ok) {
+            const data = await response.json();
+            setPlacesData(data);
+          }
+        } catch (error) {
+          console.error('매장 정보 갱신 오류:', error);
+        }
+      };
+      
+      // 데이터 갱신 후 페이지 이동
+      await fetchUpdatedData();
       router.push(`/p/${result.placeId}`);
 
     } catch (error) {

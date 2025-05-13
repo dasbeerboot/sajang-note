@@ -36,6 +36,7 @@ interface ChangeInfo {
   can_change_place: boolean;
   next_change_available_date: string | null;
   has_wildcard_available: boolean;
+  remaining_place_changes: number;
 }
 
 interface MyPlacesData {
@@ -54,10 +55,8 @@ export default function MyPlacesPage() {
   const [error, setError] = useState<string | null>(null);
   
   // 모달 상태
-  const [showChangeModal, setShowChangeModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedPlace, setSelectedPlace] = useState<PlaceData | null>(null);
-  const [newPlaceUrl, setNewPlaceUrl] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
 
   // 데이터 가져오기
@@ -117,139 +116,9 @@ export default function MyPlacesPage() {
     fetchData();
   }, [user, loading]); // 인증 상태가 변경될 때마다 다시 요청
 
-  // 매장 변경 처리
-  const handlePlaceChange = async () => {
-    if (!selectedPlace || !newPlaceUrl) return;
-    
-    try {
-      // 폼 값 저장 (모달 닫은 후에도 사용)
-      const placeId = selectedPlace.id;
-      const placeName = selectedPlace.place_name;
-      const url = newPlaceUrl;
-      
-      // 모달 즉시 닫기
-      setShowChangeModal(false);
-      setNewPlaceUrl('');
-      
-      // 처리 시작
-      setIsProcessing(true);
-      
-      // 요청 중임을 알리는 토스트 표시
-      showToast(`${placeName} 매장을 다른 매장으로 변경 중입니다.\n 수집이 완료되면 자동으로 반영됩니다.`, 'info');
-      
-      // 1단계: 변경 준비 요청
-      const response = await fetch('/api/my-places/change', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          placeId: placeId, 
-          newPlaceUrl: url,
-        }),
-      });
-      
-      const result = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(result.error || '매장 변경에 실패했습니다.');
-      }
-      
-      // 데이터 다시 가져오기
-      await fetchData();
-      
-      // 변경된 매장의 상태 확인을 위한 폴링 시작
-      startPollingPlaceStatus(placeId, result.data.is_first_change);
-      
-    } catch (err) {
-      showToast(err instanceof Error ? err.message : '알 수 없는 오류가 발생했습니다.', 'error');
-      console.error('매장 변경 오류:', err);
-      setIsProcessing(false);
-    }
-  };
-  
-  // 매장 상태 폴링 (10초마다 확인, 최대 3분)
-  const startPollingPlaceStatus = async (placeId: string, isFirstChange: boolean) => {
-    let attempts = 0;
-    const maxAttempts = 18; // 3분 (10초 * 18)
-    
-    const checkStatus = async () => {
-      try {
-        const result = await fetchData();
-        
-        if (!result || !result.places) return false;
-        
-        // 변경된 매장 찾기
-        const place = result.places.find((p: PlaceData) => p.id === placeId);
-        
-        if (!place) return false;
-        
-        // 상태 확인
-        if (place.status === 'completed') {
-          // 2단계: 변경 완료 요청
-          const completeResponse = await fetch('/api/my-places/complete-change', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              placeId,
-              isFirstChange,
-            }),
-          });
-          
-          if (completeResponse.ok) {
-            showToast(`${place.place_name} 매장 정보가 성공적으로 변경되었습니다.`, 'success');
-            fetchData(); // 최종 데이터 갱신
-          } else {
-            const errorData = await completeResponse.json();
-            console.error('매장 변경 완료 오류:', errorData);
-            showToast(errorData.error || '매장 변경 처리 중 오류가 발생했습니다.', 'error');
-          }
-          
-          return true;
-        } else if (place.status === 'failed') {
-          showToast('매장 정보 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.', 'error');
-          return true;
-        }
-        
-        return false;
-      } catch (err) {
-        console.error('매장 상태 확인 오류:', err);
-        return false;
-      }
-    };
-    
-    const poll = async () => {
-      attempts++;
-      
-      const isComplete = await checkStatus();
-      
-      if (isComplete || attempts >= maxAttempts) {
-        if (attempts >= maxAttempts && !isComplete) {
-          showToast('매장 정보 처리가 지연되고 있습니다. 나중에 다시 확인해주세요.', 'warning');
-        }
-        setIsProcessing(false);
-        return;
-      }
-      
-      setTimeout(poll, 10000); // 10초마다 상태 확인
-    };
-    
-    poll();
-  };
-
-  // 매장 삭제 처리도 유사하게 개선
+  // 매장 삭제 처리
   const handlePlaceDelete = async () => {
     if (!selectedPlace) return;
-    
-    // 변경 가능 여부 다시 확인
-    if (!data?.change_info.can_change_place) {
-      const nextDate = data?.change_info.next_change_available_date;
-      showToast(`매장 변경 간격 제한으로 인해 ${formatDate(nextDate!)}까지 매장을 삭제할 수 없습니다.`, 'warning');
-      setShowDeleteModal(false);
-      return;
-    }
     
     try {
       // 모달 즉시 닫기
@@ -281,35 +150,8 @@ export default function MyPlacesPage() {
     }
   };
 
-  // 매장 변경 모달 열기
-  const openChangeModal = (place: PlaceData) => {
-    // 이미 처리 중인 상태면 모달 열지 않음
-    if (place.status === 'processing') {
-      showToast('이 매장은 현재 처리 중입니다. 완료 후 다시 시도해주세요.', 'warning');
-      return;
-    }
-    
-    // 변경 가능 여부 체크
-    if (!data?.change_info.can_change_place) {
-      const nextDate = data?.change_info.next_change_available_date;
-      showToast(`매장 변경 간격 제한으로 인해 ${formatDate(nextDate!)}까지 다른 매장으로 변경할 수 없습니다.`, 'warning');
-      return;
-    }
-    
-    setSelectedPlace(place);
-    setNewPlaceUrl('');
-    setShowChangeModal(true);
-  };
-
   // 매장 삭제 모달 열기
   const openDeleteModal = (place: PlaceData) => {
-    // 변경 가능 여부 체크
-    if (!data?.change_info.can_change_place) {
-      const nextDate = data?.change_info.next_change_available_date;
-      showToast(`매장 변경 간격 제한으로 인해 ${formatDate(nextDate!)}까지 매장을 삭제할 수 없습니다.`, 'warning');
-      return;
-    }
-    
     setSelectedPlace(place);
     setShowDeleteModal(true);
   };
@@ -422,29 +264,36 @@ export default function MyPlacesPage() {
             </p>
           </div>
           
-          {data.profile.used_places < data.profile.max_places && data.places.length > 0 && (
-            <button 
-              className="btn btn-primary btn-sm"
-              onClick={() => router.push('/')}
-            >
-              <Storefront size={18} />
-              새 매장 등록하기
-            </button>
-          )}
-          
           {/* 변경 정보 */}
-          <div className="flex items-center gap-2">
-            <ClockCounterClockwise size={18} />
-            <span className="text-sm">
-              {data.change_info.can_change_place ? (
-                <span className="text-success">매장 변경 가능</span>
-              ) : (
-                <span>
-                  다음 매장 변경 가능일: {formatDate(data.change_info.next_change_available_date!)}
-                  (앞으로 {getRemainingDays(data.change_info.next_change_available_date!)}일)
-                </span>
-              )}
-            </span>
+          <div className="flex flex-col gap-1">
+            {/* 남은 변경 횟수 표시 */}
+            <div className="flex items-center gap-2">
+              <PencilSimple size={16} />
+              <span className="text-sm">
+                {data.change_info.has_wildcard_available ? (
+                  <span className="text-primary">첫 변경 기회 사용 가능 (무료)</span>
+                ) : (
+                  <span>
+                    7일 이내 변경 가능 횟수: <span className={data.change_info.remaining_place_changes > 0 ? "text-success font-medium" : "text-error font-medium"}>
+                      {data.change_info.remaining_place_changes}회
+                    </span>
+                  </span>
+                )}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <ClockCounterClockwise size={18} />
+              <span className="text-sm">
+                {data.change_info.can_change_place ? (
+                  <span className="text-success">매장 변경 가능</span>
+                ) : (
+                  <span>
+                    변경 횟수 소진시 다음 매장 변경 가능일: {formatDate(data.change_info.next_change_available_date!)}
+                    (D-{getRemainingDays(data.change_info.next_change_available_date!)}일)
+                  </span>
+                )}
+              </span>
+            </div>
           </div>
         </div>
       </div>
@@ -455,9 +304,7 @@ export default function MyPlacesPage() {
           <PlaceCard
             key={place.id}
             place={place}
-            canChange={data.change_info.can_change_place}
             isProcessing={isProcessing}
-            onChangeClick={openChangeModal}
             onDeleteClick={openDeleteModal}
             showActions={true}
             className="cursor-pointer"
@@ -466,115 +313,12 @@ export default function MyPlacesPage() {
         
         {/* 매장 추가 버튼 카드 */}
         <AddPlaceButton 
-          onClick={() => router.push('/')}
+          onClick={fetchData}
           canAddPlace={data.profile.used_places < data.profile.max_places}
           maxPlaces={data.profile.max_places}
           usedPlaces={data.profile.used_places}
         />
       </div>
-      
-      {/* 매장이 없는 경우 */}
-      {data.places.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-16">
-          <div className="card bg-base-100 shadow-lg p-8 max-w-md text-center">
-            <div className="mb-6">
-              <Storefront size={64} className="mx-auto text-primary mb-4" weight="duotone" />
-              <h3 className="text-2xl font-bold mb-3">등록된 매장이 없습니다</h3>
-              <p className="text-base-content/70 mb-4">
-                네이버 플레이스 URL을 등록하고 AI 카피를 생성해보세요.
-              </p>
-              <p className="text-sm text-base-content/60 mb-6">
-                {data.profile.max_places}개의 매장을 등록할 수 있습니다.
-              </p>
-            </div>
-            <button 
-              className="btn btn-primary btn-lg w-full"
-              onClick={() => router.push('/')}
-            >
-              <Storefront size={20} className="mr-2" />
-              매장 등록하러 가기
-            </button>
-          </div>
-        </div>
-      )}
-      
-      {/* 매장 변경 모달 */}
-      {showChangeModal && (
-        <div className="modal modal-open animate-fadeIn">
-          <div className="modal-box animate-slideIn">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="bg-primary/10 p-2 rounded-full">
-                <PencilSimple size={24} className="text-primary" />
-              </div>
-              <h3 className="font-bold text-lg">다른 매장으로 변경</h3>
-            </div>
-            <button
-              onClick={() => setShowChangeModal(false)}
-              className="btn btn-sm btn-ghost absolute right-2 top-2"
-              disabled={isProcessing}
-            >
-              ✕
-            </button>
-            
-            <div className="divider my-1"></div>
-            
-            <div className="py-2">
-              <p className="mb-4 text-base-content/80">
-                <span className="font-semibold text-base-content">{selectedPlace?.place_name}</span> 정보를 다른 매장으로 변경합니다.
-                <br />변경 후 새로운 매장 데이터를 가져오는 동안 처리가 완료될 때까지 기다려주세요.
-              </p>
-              
-              <div className="form-control">
-                <label className="label">
-                  <span className="label-text font-medium text-primary/80">새로운 매장 네이버 플레이스 URL</span>
-                </label>
-                <div className="relative">
-                  <input 
-                    type="text" 
-                    placeholder="https://map.naver.com/p/..." 
-                    className="input input-bordered w-full pr-10 focus:border-primary" 
-                    value={newPlaceUrl}
-                    onChange={(e) => setNewPlaceUrl(e.target.value)}
-                    disabled={isProcessing}
-                  />
-                  {newPlaceUrl && (
-                    <button 
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-base-content/50 hover:text-base-content"
-                      onClick={() => setNewPlaceUrl('')}
-                      disabled={isProcessing}
-                    >
-                      ✕
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-            
-            <div className="modal-action mt-6">
-              <button 
-                className="btn btn-outline btn-sm"
-                onClick={() => setShowChangeModal(false)}
-                disabled={isProcessing}
-              >
-                취소
-              </button>
-              <button 
-                className="btn btn-primary btn-sm"
-                onClick={handlePlaceChange}
-                disabled={!newPlaceUrl || isProcessing}
-              >
-                {isProcessing ? (
-                  <>
-                    <span className="loading loading-spinner loading-xs"></span>
-                    처리 중...
-                  </>
-                ) : '변경하기'}
-              </button>
-            </div>
-          </div>
-          <div className="modal-backdrop bg-base-300 bg-opacity-50" onClick={() => !isProcessing && setShowChangeModal(false)}></div>
-        </div>
-      )}
       
       {/* 매장 삭제 모달 */}
       {showDeleteModal && (

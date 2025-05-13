@@ -24,8 +24,9 @@ export async function GET() {
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
         cookies: {
-          get(name: string) {
-            return cookieStore.get(name)?.value;
+          async get(name: string) {
+            const cookie = await cookieStore.get(name);
+            return cookie?.value;
           },
           set(name: string, value: string, options: Record<string, unknown>) {
             cookieStore.set({ name, value, ...options });
@@ -38,18 +39,18 @@ export async function GET() {
     );
 
     // 현재 로그인한 사용자 확인
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-    if (sessionError || !session) {
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
       return NextResponse.json({ error: '로그인이 필요합니다.' }, { status: 401 });
     }
     
-    const userId = session.user.id;
+    const userId = user.id;
     const serviceClient = createServiceClient();
     
     // 사용자 프로필 정보 조회
     const { data: profileData, error: profileError } = await serviceClient
       .from('profiles')
-      .select('max_places, next_place_change_date, first_place_change_used, subscription_tier')
+      .select('max_places, next_place_change_date, first_place_change_used, subscription_tier, remaining_place_changes')
       .eq('id', userId)
       .single();
       
@@ -101,31 +102,52 @@ export async function GET() {
       copies_count: copiesCountMap.get(place.id) || 0
     }));
     
-    // 다음 변경 가능 여부 확인
-    const now = new Date();
-    let canChangePlace = true;
-    let nextChangeAvailableDate = null;
+    // 실제 사용 중인 매장 수 계산 (failed 상태 제외)
+    const activePlacesCount = placesData.filter(place => place.status !== 'failed').length;
     
-    if (profileData.next_place_change_date && new Date(profileData.next_place_change_date) > now) {
-      canChangePlace = false;
-      nextChangeAvailableDate = profileData.next_place_change_date;
+    // 변경 가능 여부 확인
+    const { data: changeInfo, error: changeError } = await serviceClient.rpc('get_user_change_info', {
+      p_user_id: userId
+    });
+    
+    if (changeError) {
+      console.error('변경 가능 여부 조회 오류:', changeError);
+      
+      // 오류 발생 시 기본 값으로 대체
+      const defaultChangeInfo = {
+        can_change_place: profileData.remaining_place_changes > 0 || !profileData.first_place_change_used,
+        next_change_available_date: profileData.next_place_change_date,
+        has_wildcard_available: !profileData.first_place_change_used,
+        remaining_place_changes: profileData.remaining_place_changes || 0
+      };
+      
+      return NextResponse.json({
+        profile: {
+          max_places: profileData.max_places,
+          used_places: activePlacesCount,
+          subscription_tier: profileData.subscription_tier,
+          next_place_change_date: profileData.next_place_change_date,
+          remaining_place_changes: profileData.remaining_place_changes || 0
+        },
+        places: placesWithCopiesCount,
+        change_info: defaultChangeInfo
+      });
     }
-    
-    // 와일드카드 사용 가능 여부 확인
-    const hasWildcardAvailable = !profileData.first_place_change_used;
     
     return NextResponse.json({
       profile: {
         max_places: profileData.max_places,
-        used_places: placesData.length,
+        used_places: activePlacesCount,
         subscription_tier: profileData.subscription_tier,
         next_place_change_date: profileData.next_place_change_date,
+        remaining_place_changes: profileData.remaining_place_changes || 0
       },
       places: placesWithCopiesCount,
       change_info: {
-        can_change_place: canChangePlace || hasWildcardAvailable,
-        next_change_available_date: nextChangeAvailableDate,
-        has_wildcard_available: hasWildcardAvailable
+        can_change_place: changeInfo.can_change_place,
+        next_change_available_date: changeInfo.next_change_available_date,
+        has_wildcard_available: changeInfo.has_wildcard_available,
+        remaining_place_changes: changeInfo.remaining_place_changes || 0
       }
     });
     
