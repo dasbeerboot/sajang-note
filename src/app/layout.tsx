@@ -88,11 +88,7 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ko" suppressHydrationWarning>
       <body className={pretendard.className}>
@@ -102,9 +98,7 @@ export default function RootLayout({
               <AuthModalProvider>
                 <div className="flex flex-col min-h-screen">
                   <Header />
-                  <main className="flex-grow">
-                    {children}
-                  </main>
+                  <main className="flex-grow">{children}</main>
                   <Footer />
                   <LoginModal modalId="global_login_modal" />
                 </div>

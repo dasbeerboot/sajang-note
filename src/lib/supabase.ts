@@ -14,6 +14,6 @@ export function getSupabaseBrowserClient() {
 
 // 기존 export const supabase = createClient(supabaseUrl, supabaseAnonKey); 방식은
 // 서버 사이드 렌더링이나 API 라우트에서 쿠키 기반 인증을 올바르게 처리하지 못할 수 있습니다.
-// 앱 전체에서 공유되는 단일 인스턴스가 필요하다면, 
+// 앱 전체에서 공유되는 단일 인스턴스가 필요하다면,
 // Context 내부나 클라이언트 사이드에서 한 번만 생성하여 사용하는 것을 고려해야 합니다.
-// 지금은 getSupabaseBrowserClient 함수를 export 하여 사용하는 곳에서 호출하도록 합니다. 
+// 지금은 getSupabaseBrowserClient 함수를 export 하여 사용하는 곳에서 호출하도록 합니다.

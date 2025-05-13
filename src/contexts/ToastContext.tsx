@@ -22,18 +22,18 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
   const showToast = (message: string, type: ToastType = 'info') => {
     const id = Math.random().toString(36).substring(2, 9);
-    setToasts((prev) => [...prev, { id, message, type }]);
+    setToasts(prev => [...prev, { id, message, type }]);
   };
 
   const removeToast = (id: string) => {
-    setToasts((prev) => prev.filter((toast) => toast.id !== id));
+    setToasts(prev => prev.filter(toast => toast.id !== id));
   };
 
   return (
     <ToastContext.Provider value={{ showToast }}>
       {children}
       <div className="fixed top-[25%] left-0 right-0 flex flex-col items-center justify-center z-50 pointer-events-none">
-        {toasts.map((toast) => (
+        {toasts.map(toast => (
           <Toast
             key={toast.id}
             message={toast.message}
@@ -52,4 +52,4 @@ export function useToast() {
     throw new Error('useToast must be used within a ToastProvider');
   }
   return context;
-} 
+}

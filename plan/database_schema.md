@@ -194,7 +194,7 @@ EXECUTE FUNCTION update_updated_at_column();
 -- 사용자의 플레이스 수 제한 체크
 CREATE FUNCTION check_place_limit() RETURNS TRIGGER AS $$
 BEGIN
-  IF (SELECT COUNT(*) FROM places WHERE user_id = NEW.user_id) >= 
+  IF (SELECT COUNT(*) FROM places WHERE user_id = NEW.user_id) >=
      (SELECT max_places FROM profiles WHERE id = NEW.user_id) THEN
     RAISE EXCEPTION '플레이스 최대 개수를 초과했습니다';
   END IF;
@@ -265,6 +265,6 @@ $$ LANGUAGE plpgsql;
 2. 결제 시스템은 어떻게 연동할 계획인가요?
 3. 플레이스 변경 제한(14일에 한 번)을 어떻게 UI에서 표현할 계획인가요?
 4. 사용자가 요금제를 변경하면 플레이스 수 제한은 어떻게 처리할 계획인가요?
-5. 콘텐츠 생성 기록과 버전 관리는 어떻게 할 계획인가요? 
+5. 콘텐츠 생성 기록과 버전 관리는 어떻게 할 계획인가요?
 6. 휴대폰 인증이 실패할 경우 재시도 정책은 어떻게 할 계획인가요?
-7. SMS 인증번호 발송 서비스는 어떤 것을 사용할 계획인가요? (Solapi, Twilio 등) 
+7. SMS 인증번호 발송 서비스는 어떤 것을 사용할 계획인가요? (Solapi, Twilio 등)

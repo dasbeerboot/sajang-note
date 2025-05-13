@@ -25,22 +25,19 @@ export async function GET(request: Request) {
     // Supabase Edge Function 호출
     const response = await axios.get(EDGE_FUNCTION_URL, {
       headers: {
-        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
-      }
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      },
     });
 
     return NextResponse.json(response.data);
   } catch (error) {
     console.error('정기 결제 처리 중 오류:', error);
-    
+
     if (axios.isAxiosError(error)) {
       // AxiosError인 경우, response 객체가 있을 수 있음
       const status = error.response?.status || 500;
       const details = error.response?.data || error.message;
-      return NextResponse.json(
-        { error: '정기 결제 처리 실패', details },
-        { status }
-      );
+      return NextResponse.json({ error: '정기 결제 처리 실패', details }, { status });
     } else if (error instanceof Error) {
       // 일반 Error 객체인 경우
       return NextResponse.json(
@@ -59,4 +56,4 @@ export async function GET(request: Request) {
 
 // 헤더 설정
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60; // 최대 실행 시간을 60초로 변경 
+export const maxDuration = 60; // 최대 실행 시간을 60초로 변경

@@ -45,6 +45,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
 - templateId: KA01TP250430143738849XalNf3Jco1v
 
 알림톡 템플릿은 다음과 같은 형식으로 설정되어야 합니다:
+
 ```
 ⚠️[사장노트] 인증번호는 [#{인증번호}]입니다. 3분 이내에 입력해주세요.
 ```

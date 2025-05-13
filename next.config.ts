@@ -1,4 +1,4 @@
-import type { NextConfig } from "next";
+import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
   /* config options here */
@@ -8,27 +8,28 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: 'lh3.googleusercontent.com',
         port: '',
-        pathname: '/**', 
+        pathname: '/**',
       },
-      { // 기존 HTTPS 설정
+      {
+        // 기존 HTTPS 설정
         protocol: 'https',
         hostname: 'k.kakaocdn.net',
         port: '',
-        pathname: '/**', 
+        pathname: '/**',
       },
       // === 추가 시작 ===
-      { 
+      {
         protocol: 'http', // HTTP 프로토콜
         hostname: 'k.kakaocdn.net', // 동일 호스트
         port: '',
-        pathname: '/**', 
+        pathname: '/**',
       },
       // === 추가 끝 ===
       {
         protocol: 'https',
         hostname: 'search.pstatic.net',
         port: '',
-        pathname: '/common/**', 
+        pathname: '/common/**',
       },
       {
         protocol: 'https',
@@ -55,7 +56,7 @@ const nextConfig: NextConfig = {
         pathname: '/images/stock/**',
       },
     ],
-  }
+  },
 };
 
 export default nextConfig;

@@ -20,4 +20,4 @@ export default function LoginModalTrigger() {
   }, [searchParams, openAuthModal, router]);
 
   return null; // 이 컴포넌트는 UI를 렌더링하지 않습니다.
-} 
+}

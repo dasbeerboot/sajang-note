@@ -1,6 +1,15 @@
 'use client';
 
-import { createContext, useContext, useState, ReactNode, useCallback, useRef, RefObject, useEffect } from 'react';
+import {
+  createContext,
+  useContext,
+  useState,
+  ReactNode,
+  useCallback,
+  useRef,
+  RefObject,
+  useEffect,
+} from 'react';
 
 interface AuthModalContextType {
   isAuthModalOpen: boolean;
@@ -46,19 +55,14 @@ export function AuthModalProvider({ children }: { children: ReactNode }) {
     };
   }, [authModalRef]); // authModalRef가 변경될 때마다 (실제로는 거의 없음) effect 재실행
 
-
   const value = {
     isAuthModalOpen,
     openAuthModal,
     closeAuthModal,
-    authModalRef // LoginModal에서 이 ref를 사용하도록 전달
+    authModalRef, // LoginModal에서 이 ref를 사용하도록 전달
   };
 
-  return (
-    <AuthModalContext.Provider value={value}>
-      {children}
-    </AuthModalContext.Provider>
-  );
+  return <AuthModalContext.Provider value={value}>{children}</AuthModalContext.Provider>;
 }
 
 export function useAuthModal() {
@@ -67,4 +71,4 @@ export function useAuthModal() {
     throw new Error('useAuthModal must be used within an AuthModalProvider');
   }
   return context;
-} 
+}

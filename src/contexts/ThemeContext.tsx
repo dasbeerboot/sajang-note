@@ -20,12 +20,14 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     // 로컬 스토리지에서 테마 가져오기
     const storedTheme = localStorage.getItem('theme') as ThemeType | null;
     // 시스템 기본 테마 확인
-    const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-    
+    const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches
+      ? 'dark'
+      : 'light';
+
     // 저장된 테마가 있으면 사용, 없으면 시스템 테마 사용
     const initialTheme = storedTheme || systemTheme;
     setTheme(initialTheme);
-    
+
     // HTML 요소에 data-theme 속성 설정
     document.documentElement.setAttribute('data-theme', initialTheme);
   }, []);
@@ -56,4 +58,4 @@ export function useTheme() {
     throw new Error('useTheme must be used within a ThemeProvider');
   }
   return context;
-} 
+}

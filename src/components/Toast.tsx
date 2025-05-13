@@ -9,12 +9,7 @@ interface ToastProps {
   onClose?: () => void;
 }
 
-export default function Toast({ 
-  message, 
-  type = 'info', 
-  duration = 3000, 
-  onClose 
-}: ToastProps) {
+export default function Toast({ message, type = 'info', duration = 3000, onClose }: ToastProps) {
   const [visible, setVisible] = useState(true);
 
   useEffect(() => {
@@ -45,8 +40,10 @@ export default function Toast({
   if (!visible) return null;
 
   return (
-    <div className={`px-6 py-3 rounded-lg text-sm shadow-lg mb-2 ${getTypeStyle()} animate-fadeIn pointer-events-auto`}>
+    <div
+      className={`px-6 py-3 rounded-lg text-sm shadow-lg mb-2 ${getTypeStyle()} animate-fadeIn pointer-events-auto`}
+    >
       <span>{message}</span>
     </div>
   );
-} 
+}

@@ -10,6 +10,7 @@ import { MagicWand } from '@phosphor-icons/react';
 import Link from 'next/link';
 import AILoadingState from '@/components/AILoadingState';
 import { useRouter } from 'next/navigation';
+import { useToast } from '@/contexts/ToastContext';
 
 interface BasicInfo {
   representative_images?: string[];
@@ -35,16 +36,16 @@ interface CrawledData {
   review_analysis?: ReviewAnalysis;
 }
 
-interface PlaceData { 
+interface PlaceData {
   id: string;
-  user_id: string; 
-  place_id: string; 
+  user_id: string;
+  place_id: string;
   place_name?: string;
   place_address?: string;
   place_url?: string;
   place_image_url?: string;
   status?: 'completed' | 'processing' | 'failed';
-  crawled_data?: CrawledData; 
+  crawled_data?: CrawledData;
   error_message?: string | null;
   created_at: string;
   updated_at: string;
@@ -55,8 +56,8 @@ interface PlaceData {
 }
 
 interface CopyMenuItem {
-  id: string; 
-  label: string; 
+  id: string;
+  label: string;
 }
 
 interface PlaceDetailClientProps {
@@ -76,14 +77,18 @@ const aiCopyMenuItemsData: CopyMenuItem[] = [
   { id: 'powerlink_ad', label: '네이버 파워링크 광고문구' },
   { id: 'naver_place_description', label: '네이버 플레이스 광고문구' },
   { id: 'instagram_post', label: '인스타(메타) 포스팅' },
+  { id: 'threads_post', label: '쓰레드 포스팅' },
+  { id: 'blog_review_post', label: '블로그 리뷰 포스팅' },
+  // { id: 'brand_blog', label: '브랜드 블로그 포스팅'},
 ];
 
-export default function PlaceDetailClient({ 
-  placeId, 
+export default function PlaceDetailClient({
+  placeId,
   initialPlaceData,
-  initialError 
+  initialError,
 }: PlaceDetailClientProps) {
   const router = useRouter();
+  const { showToast } = useToast();
   const [placeData, setPlaceData] = useState<PlaceData | null>(initialPlaceData || null);
   const [isLoadingPage, setIsLoadingPage] = useState(!initialPlaceData);
   const [errorPage, setErrorPage] = useState<string | null>(initialError || null);
@@ -102,39 +107,43 @@ export default function PlaceDetailClient({
   );
 
   // 저장된 카피 로드 함수
-  const loadSavedCopies = useCallback(async (placeId: string) => {
-    const { data, error } = await supabase
-      .from('ai_generated_copies')
-      .select('copy_type, generated_content')
-      .eq('place_id', placeId);
-      
-    if (error) {
-      console.error('저장된 카피 로드 오류:', error);
-      return;
-    }
-    
-    // 저장된 메뉴 ID 목록 업데이트
-    if (data && data.length > 0) {
-      const savedIds = data.map(item => item.copy_type);
-      setSavedMenuIds(savedIds);
-      
-      // localStorage에도 저장 (오프라인 접근용)
-      for (const item of data) {
-        localStorage.setItem(`copy_${placeId}_${item.copy_type}`, item.generated_content);
+  const loadSavedCopies = useCallback(
+    async (placeId: string) => {
+      const { data, error } = await supabase
+        .from('ai_generated_copies')
+        .select('copy_type, generated_content')
+        .eq('place_id', placeId);
+
+      if (error) {
+        console.error('저장된 카피 로드 오류:', error);
+        return;
       }
-    }
-  }, [supabase, setSavedMenuIds]);
+
+      // 저장된 메뉴 ID 목록 업데이트
+      if (data && data.length > 0) {
+        const savedIds = data.map(item => item.copy_type);
+        setSavedMenuIds(savedIds);
+
+        // localStorage에도 저장 (오프라인 접근용)
+        for (const item of data) {
+          localStorage.setItem(`copy_${placeId}_${item.copy_type}`, item.generated_content);
+        }
+      }
+    },
+    [supabase, setSavedMenuIds]
+  );
 
   useEffect(() => {
     async function fetchData() {
       if (initialPlaceData) {
         // 이미 서버에서 데이터를 전달받은 경우는 추가 로딩이 필요 없음
         // 이미지 URL 추가
-        const representativeImages = initialPlaceData?.crawled_data?.basic_info?.representative_images;
+        const representativeImages =
+          initialPlaceData?.crawled_data?.basic_info?.representative_images;
         if (representativeImages && representativeImages.length > 0) {
           const placeWithImage = {
             ...initialPlaceData,
-            place_image_url: representativeImages[0]
+            place_image_url: representativeImages[0],
           };
           setPlaceData(placeWithImage);
         } else {
@@ -147,7 +156,9 @@ export default function PlaceDetailClient({
       setErrorPage(null);
 
       // 사용자 세션 확인
-      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      const {
+        data: { user: currentUser },
+      } = await supabase.auth.getUser();
       setUser(currentUser as UserType | null);
 
       if (!currentUser) {
@@ -157,11 +168,7 @@ export default function PlaceDetailClient({
       }
 
       // 매장 정보 가져오기
-      const { data, error } = await supabase
-        .from('places')
-        .select('*')
-        .eq('id', placeId)
-        .single();
+      const { data, error } = await supabase.from('places').select('*').eq('id', placeId).single();
 
       if (error) {
         console.error(`[PlaceDetailClient] 매장 정보 조회 실패:`, error?.message);
@@ -169,17 +176,19 @@ export default function PlaceDetailClient({
         setIsLoadingPage(false);
         return;
       }
-      
+
       if (!data) {
         console.error(`[PlaceDetailClient] 매장 정보 조회 실패: 데이터 없음`);
         setErrorPage('해당 매장 정보를 찾을 수 없습니다.');
         setIsLoadingPage(false);
         return;
       }
-      
+
       // 권한 검사
       if (data.user_id !== currentUser.id) {
-        console.warn(`[PlaceDetailClient] 접근 권한 없음. 요청: ${currentUser.id}, 소유자: ${data.user_id}`);
+        console.warn(
+          `[PlaceDetailClient] 접근 권한 없음. 요청: ${currentUser.id}, 소유자: ${data.user_id}`
+        );
         setErrorPage('이 매장에 대한 접근 권한이 없습니다.');
         setIsLoadingPage(false);
         return;
@@ -209,10 +218,12 @@ export default function PlaceDetailClient({
   // 사용자 정보 로드
   useEffect(() => {
     async function loadUser() {
-      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      const {
+        data: { user: currentUser },
+      } = await supabase.auth.getUser();
       setUser(currentUser as UserType | null);
     }
-    
+
     if (!user) {
       loadUser();
     }
@@ -228,7 +239,7 @@ export default function PlaceDetailClient({
   // 메뉴 선택 처리
   const handleSelectMenu = async (copyType: string) => {
     setActiveMenuId(copyType);
-    
+
     // 이미 저장된 카피가 있는지 확인
     if (savedMenuIds.includes(copyType)) {
       // 저장된 카피 불러오기
@@ -237,7 +248,7 @@ export default function PlaceDetailClient({
         setGeneratedCopy(savedCopy);
         return;
       }
-      
+
       // localStorage에 없으면 DB에서 다시 조회
       const { data, error } = await supabase
         .from('ai_generated_copies')
@@ -245,7 +256,7 @@ export default function PlaceDetailClient({
         .eq('place_id', placeData?.id)
         .eq('copy_type', copyType)
         .single();
-        
+
       if (!error && data) {
         setGeneratedCopy(data.generated_content);
       } else {
@@ -262,42 +273,93 @@ export default function PlaceDetailClient({
   // 카피 생성 처리
   const handleGenerateCopy = async (userPromptValue: string) => {
     if (!placeData || !activeMenuId) return;
-    
+
     setIsGeneratingCopy(true);
     setGeneratedCopy(null);
 
     try {
+      // 무료 체험 횟수 확인 및 구독 상태 확인
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select(
+          'subscription_tier, subscription_status, subscription_end_date, free_trial_copy_remaining'
+        )
+        .eq('id', user?.id)
+        .single();
+
+      if (profileError) {
+        showToast(
+          '사용자 정보를 확인하는 중 오류가 발생했습니다: ' + profileError.message,
+          'error'
+        );
+        setIsGeneratingCopy(false);
+        return;
+      }
+
+      // 무료 체험 차감 여부 확인 - DB 함수와 동일한 로직 적용
+      const now = new Date();
+      const subscriptionEndDate = profileData.subscription_end_date
+        ? new Date(profileData.subscription_end_date)
+        : null;
+
+      // 구독 상태가 active이거나, canceled이지만 아직 만료되지 않은 경우만 유효한 구독으로 간주
+      const isActiveSubscription =
+        (profileData.subscription_tier !== 'free' &&
+          profileData.subscription_status === 'active') ||
+        (profileData.subscription_tier !== 'free' &&
+          profileData.subscription_status === 'canceled' &&
+          subscriptionEndDate &&
+          subscriptionEndDate > now);
+
+      // 구독중이 아니고 무료 체험 횟수가 0인 경우
+      if (!isActiveSubscription && profileData.free_trial_copy_remaining <= 0) {
+        showToast(
+          '무료 체험 횟수를 모두 사용했습니다. 구독하신 후 이용하실 수 있습니다',
+          'warning'
+        );
+        setIsGeneratingCopy(false);
+        return;
+      }
+
+      // 클라이언트에서는 차감하지 않고 Edge Function에서만 차감하도록 수정
+      // Edge Function에서 성공적으로 응답을 받은 후에만 차감됨
+
       const { data, error } = await supabase.functions.invoke('generate-ai-copy', {
-        body: { 
+        body: {
           placeId: placeData.id,
           copyType: activeMenuId,
-          userPrompt: userPromptValue || null
-        }
+          userPrompt: userPromptValue || null, // 빈 문자열이면 null로 처리 (기본 생성)
+        },
       });
 
       if (error) {
-        alert('카피 생성 중 오류가 발생했습니다: ' + error.message);
+        showToast('카피 생성 중 오류가 발생했습니다: ' + error.message, 'error');
         setGeneratedCopy('오류: ' + error.message);
       } else if (data && typeof data.generatedCopy === 'string') {
         const generatedContent = data.generatedCopy;
         setGeneratedCopy(generatedContent);
-        
+
         // 생성된 카피 저장
         await saveCopy(placeData.id, activeMenuId, userPromptValue, generatedContent);
-        
+
         // 저장된 메뉴 목록 업데이트
         if (!savedMenuIds.includes(activeMenuId)) {
           setSavedMenuIds(prev => [...prev, activeMenuId]);
         }
-        
+
         // localStorage에도 저장
         localStorage.setItem(`copy_${placeData.id}_${activeMenuId}`, generatedContent);
+
+        // 성공적으로 생성되었으므로 남은 무료 체험 횟수 UI 업데이트 (실제 차감은 Edge Function에서 처리됨)
+        if (!isActiveSubscription && data.remainingCount !== undefined) {
+          showToast(`남은 무료 체험 횟수: ${data.remainingCount}회`, 'info');
+        }
       } else {
         setGeneratedCopy('알 수 없는 응답 형식입니다.');
       }
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : '알 수 없는 에러가 발생했습니다';
-      alert('카피 생성 중 예외가 발생했습니다: ' + errorMsg);
+      showToast('카피 생성 중 예외가 발생했습니다: ' + errorMsg, 'error');
       setGeneratedCopy('예외: ' + errorMsg);
     } finally {
       setIsGeneratingCopy(false);
@@ -305,20 +367,26 @@ export default function PlaceDetailClient({
   };
 
   // 카피 저장 함수
-  const saveCopy = async (placeId: string, copyType: string, userPrompt: string, content: string) => {
-    const { error } = await supabase
-      .from('ai_generated_copies')
-      .upsert({
+  const saveCopy = async (
+    placeId: string,
+    copyType: string,
+    userPrompt: string,
+    content: string
+  ) => {
+    const { error } = await supabase.from('ai_generated_copies').upsert(
+      {
         place_id: placeId,
         user_id: user?.id,
         copy_type: copyType,
         user_prompt: userPrompt,
         generated_content: content,
-        updated_at: new Date().toISOString()
-      }, {
-        onConflict: 'place_id,copy_type'
-      });
-      
+        updated_at: new Date().toISOString(),
+      },
+      {
+        onConflict: 'place_id,copy_type',
+      }
+    );
+
     if (error) {
       console.error('카피 저장 오류:', error);
     }
@@ -352,16 +420,48 @@ export default function PlaceDetailClient({
       <div className="container mx-auto p-4 min-h-screen flex flex-col items-center justify-center">
         <div role="alert" className={`alert ${alertType} max-w-lg shadow-md`}>
           {errorPage.includes('로그인') ? (
-            <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="stroke-current shrink-0 h-6 w-6"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+              />
+            </svg>
           ) : (
-            <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2 2m2-2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="stroke-current shrink-0 h-6 w-6"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M10 14l2-2m0 0l2-2m-2 2l-2 2m2-2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
           )}
           <div>
-            <h3 className="font-bold">{errorPage.includes('로그인') ? '로그인 필요' : errorPage.includes('권한 없음') ? '접근 권한 없음' : '오류'}</h3>
+            <h3 className="font-bold">
+              {errorPage.includes('로그인')
+                ? '로그인 필요'
+                : errorPage.includes('권한 없음')
+                  ? '접근 권한 없음'
+                  : '오류'}
+            </h3>
             <div className="text-xs">{errorPage}</div>
           </div>
         </div>
-        <Link href="/" className="btn btn-primary mt-4">홈으로 돌아가기</Link>
+        <Link href="/" className="btn btn-primary mt-4">
+          홈으로 돌아가기
+        </Link>
       </div>
     );
   }
@@ -378,7 +478,9 @@ export default function PlaceDetailClient({
   if (placeData.status === 'processing') {
     return (
       <div className="container mx-auto p-4 min-h-screen flex flex-col items-center justify-center">
-        <h1 className="text-xl font-semibold mb-3">{placeData.place_name || '매장 정보'} 처리 중...</h1>
+        <h1 className="text-xl font-semibold mb-3">
+          {placeData.place_name || '매장 정보'} 처리 중...
+        </h1>
         <AILoadingState type="analysis" />
       </div>
     );
@@ -388,74 +490,92 @@ export default function PlaceDetailClient({
     return (
       <div className="container mx-auto p-4 min-h-screen flex flex-col items-center justify-center">
         <div role="alert" className="alert alert-error max-w-lg shadow-md">
-          <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2 2m2-2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="stroke-current shrink-0 h-6 w-6"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M10 14l2-2m0 0l2-2m-2 2l-2 2m2-2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
+          </svg>
           <div>
             <h3 className="font-bold">매장 정보 처리 실패</h3>
-            <div className="text-xs break-all">오류: {placeData.error_message || '알 수 없는 오류.'}</div>
+            <div className="text-xs break-all">
+              오류: {placeData.error_message || '알 수 없는 오류.'}
+            </div>
           </div>
         </div>
-        <p className="mt-4 text-sm text-center max-w-md text-base-content/80">정보 수집/분석 중 문제가 발생했습니다. <br/><span className="text-primary font-bold">내 매장 관리 </span>메뉴에서 삭제 후 다시 시도하거나 지원팀에 문의해주세요.</p>
+        <p className="mt-4 text-sm text-center max-w-md text-base-content/80">
+          정보 수집/분석 중 문제가 발생했습니다. <br />
+          <span className="text-primary font-bold">내 매장 관리 </span>메뉴에서 삭제 후 다시
+          시도하거나 지원팀에 문의해주세요.
+        </p>
         <div className="mt-6 text-center">
-              <button 
-                className="btn btn-primary"
-                onClick={() => router.push('/my-places')}
-              >
-                내 매장 관리하기
-              </button>
-            </div>
+          <button className="btn btn-primary" onClick={() => router.push('/my-places')}>
+            내 매장 관리하기
+          </button>
+        </div>
       </div>
     );
   }
-  
+
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
       <h1 className="text-2xl font-bold mb-6 flex items-center">
         <span className="mr-2">광고 카피 생성하기</span>
       </h1>
-      
-      <PlaceSummarySection 
-        placeData={placeData} 
+
+      <PlaceSummarySection
+        placeData={placeData}
         reviewCounts={{
           blogReviews: placeData.blog_reviews_count,
-          visitorReviews: placeData.visitor_reviews_count
+          visitorReviews: placeData.visitor_reviews_count,
         }}
       />
-      
+
       <div className="mt-8 mb-4">
         <h2 className="text-xl font-bold mb-4 flex items-center">
           <MagicWand size={20} className="mr-2" />
           AI로 만드는 진짜 팔리는 광고 카피
         </h2>
         <p className="text-sm text-base-content/70 mb-6">
-          매장 정보를 기반으로 AI가 다양한 마케팅 카피를 생성해 드립니다. 당근마켓, 네이버 등 다양한 플랫폼에 활용해보세요.
+          매장 정보를 기반으로 AI가 다양한 마케팅 카피를 생성해 드립니다. 당근마켓, 네이버 등 다양한
+          플랫폼에 활용해보세요.
         </p>
       </div>
-      
-      <AICopyButtonList 
-        items={aiCopyMenuItemsData} 
+
+      <AICopyButtonList
+        items={aiCopyMenuItemsData}
         onSelectMenu={handleSelectMenu}
         activeMenuId={activeMenuId}
         savedMenuIds={savedMenuIds}
         isLoading={isGeneratingCopy}
       />
-      
+
       {activeMenuId && !generatedCopy && !isGeneratingCopy && (
-        <AICopyForm 
+        <AICopyForm
           onSubmit={handleGenerateCopy}
           isGenerating={isGeneratingCopy}
           copyType={activeMenuId}
+          items={aiCopyMenuItemsData}
         />
       )}
-      
+
       {generatedCopy && activeMenuId && (
-        <AICopyDisplay 
+        <AICopyDisplay
           content={generatedCopy}
           copyType={activeMenuId}
           onNewCopy={handleNewCopyClick}
           isSaved={savedMenuIds.includes(activeMenuId)}
+          items={aiCopyMenuItemsData}
         />
       )}
-      
+
       {/* 새로 만들기 확인 모달 */}
       {showNewCopyModal && (
         <div className="modal modal-open">
@@ -463,16 +583,10 @@ export default function PlaceDetailClient({
             <h3 className="font-bold text-lg">카피를 새로 만드시겠습니까?</h3>
             <p className="py-4">이전에 생성된 카피가 삭제됩니다. 계속하시겠습니까?</p>
             <div className="modal-action">
-              <button 
-                className="btn btn-outline"
-                onClick={() => setShowNewCopyModal(false)}
-              >
+              <button className="btn btn-outline" onClick={() => setShowNewCopyModal(false)}>
                 돌아가기
               </button>
-              <button 
-                className="btn btn-primary"
-                onClick={handleConfirmNewCopy}
-              >
+              <button className="btn btn-primary" onClick={handleConfirmNewCopy}>
                 새로 만들기
               </button>
             </div>
@@ -480,9 +594,9 @@ export default function PlaceDetailClient({
           <div className="modal-backdrop" onClick={() => setShowNewCopyModal(false)}></div>
         </div>
       )}
-      
+
       {/* AI 카피 생성 중 로딩 인디케이터 */}
       {isGeneratingCopy && <AILoadingState type="copy" />}
     </div>
   );
-} 
+}

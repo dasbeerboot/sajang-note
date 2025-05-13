@@ -7,4 +7,4 @@ declare module 'next/headers' {
     set(options: { name: string; value: string; [key: string]: unknown }): void;
     delete(options: { name: string; [key: string]: unknown }): void;
   };
-} 
+}

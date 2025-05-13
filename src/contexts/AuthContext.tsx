@@ -27,109 +27,131 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [isProfileComplete, setIsProfileComplete] = useState(false);
-  const [subscriptionStatus, setSubscriptionStatus] = useState<SubscriptionStatusValue | null>(null); // 추가
+  const [subscriptionStatus, setSubscriptionStatus] = useState<SubscriptionStatusValue | null>(
+    null
+  ); // 추가
   const router = useRouter();
   const { showToast } = useToast();
-  
-  const fetchAndSetUserProfile = useCallback(async (currentSession: Session | null) => {
-    if (currentSession?.user) {
-      setUser(currentSession.user);
-      try {
-        const { data: profile, error } = await supabase
-          .from('profiles')
-          .select('phone_verified, full_name, phone, email, subscription_status') 
-          .eq('id', currentSession.user.id)
-          .single();
 
-        if (error && error.code !== 'PGRST116') { 
-          setIsProfileComplete(false);
-          setSubscriptionStatus(null); 
-        } else if (profile) { // profile이 null이 아닌 경우에만 접근
-          const isComplete = !!(profile.phone_verified && profile.full_name);
-          setIsProfileComplete(isComplete);
-          setSubscriptionStatus(profile.subscription_status as SubscriptionStatusValue); 
+  const fetchAndSetUserProfile = useCallback(
+    async (currentSession: Session | null) => {
+      if (currentSession?.user) {
+        setUser(currentSession.user);
+        try {
+          const { data: profile, error } = await supabase
+            .from('profiles')
+            .select('phone_verified, full_name, phone, email, subscription_status')
+            .eq('id', currentSession.user.id)
+            .single();
 
-          // 카카오 로그인 사용자이고, provider_token이 있으며, 프로필 정보가 부족할 경우 카카오 API 호출
-          if (currentSession.user.app_metadata.provider === 'kakao' && currentSession.provider_token) {
-            try {
-              const kakaoUserResponse = await axios.get('https://kapi.kakao.com/v2/user/me', {
-                headers: {
-                  'Authorization': `Bearer ${currentSession.provider_token}`,
-                  'Content-type': 'application/x-www-form-urlencoded;charset=utf-8'
-                }
-              });
-              const kakaoUserInfo = kakaoUserResponse.data;
+          if (error && error.code !== 'PGRST116') {
+            setIsProfileComplete(false);
+            setSubscriptionStatus(null);
+          } else if (profile) {
+            // profile이 null이 아닌 경우에만 접근
+            const isComplete = !!(profile.phone_verified && profile.full_name);
+            setIsProfileComplete(isComplete);
+            setSubscriptionStatus(profile.subscription_status as SubscriptionStatusValue);
 
-              const profileDataToUpdate: { full_name?: string; email?: string; phone?: string; phone_verified?: boolean; updated_at?: string; } = {};
-              let needsUpdate = false;
+            // 카카오 로그인 사용자이고, provider_token이 있으며, 프로필 정보가 부족할 경우 카카오 API 호출
+            if (
+              currentSession.user.app_metadata.provider === 'kakao' &&
+              currentSession.provider_token
+            ) {
+              try {
+                const kakaoUserResponse = await axios.get('https://kapi.kakao.com/v2/user/me', {
+                  headers: {
+                    Authorization: `Bearer ${currentSession.provider_token}`,
+                    'Content-type': 'application/x-www-form-urlencoded;charset=utf-8',
+                  },
+                });
+                const kakaoUserInfo = kakaoUserResponse.data;
 
-              const kakaoAccount = kakaoUserInfo.kakao_account;
-              if (kakaoAccount) {
-                const kakaoNickname = kakaoAccount.profile?.nickname;
-                const kakaoEmail = kakaoAccount.email;
-                // 전화번호 직접 사용 (존재하는 경우)
-                const kakaoPhoneNumberRaw = kakaoAccount.phone_number;
+                const profileDataToUpdate: {
+                  full_name?: string;
+                  email?: string;
+                  phone?: string;
+                  phone_verified?: boolean;
+                  updated_at?: string;
+                } = {};
+                let needsUpdate = false;
 
-                const kakaoPhoneNumber = kakaoPhoneNumberRaw 
-                                        ? kakaoPhoneNumberRaw.replace(/^\+82\s?10/, '010').replace(/[^0-9]/g, '') // +82 10 또는 +8210 -> 010으로 시작하고 숫자만 남김
-                                        : null;
-                
-                if (kakaoNickname && profile?.full_name !== kakaoNickname) {
-                  profileDataToUpdate.full_name = kakaoNickname;
-                  needsUpdate = true;
-                }
-                if (kakaoEmail && profile?.email !== kakaoEmail) {
-                  profileDataToUpdate.email = kakaoEmail;
-                  needsUpdate = true;
-                }
-                
-                if (kakaoPhoneNumber) { // 처리된 전화번호가 존재할 경우
-                  if (profile?.phone !== kakaoPhoneNumber || !profile?.phone_verified) {
-                    profileDataToUpdate.phone = kakaoPhoneNumber;
-                    profileDataToUpdate.phone_verified = true; // 카카오에서 받은 전화번호는 인증된 것으로 간주
+                const kakaoAccount = kakaoUserInfo.kakao_account;
+                if (kakaoAccount) {
+                  const kakaoNickname = kakaoAccount.profile?.nickname;
+                  const kakaoEmail = kakaoAccount.email;
+                  // 전화번호 직접 사용 (존재하는 경우)
+                  const kakaoPhoneNumberRaw = kakaoAccount.phone_number;
+
+                  const kakaoPhoneNumber = kakaoPhoneNumberRaw
+                    ? kakaoPhoneNumberRaw.replace(/^\+82\s?10/, '010').replace(/[^0-9]/g, '') // +82 10 또는 +8210 -> 010으로 시작하고 숫자만 남김
+                    : null;
+
+                  if (kakaoNickname && profile?.full_name !== kakaoNickname) {
+                    profileDataToUpdate.full_name = kakaoNickname;
                     needsUpdate = true;
                   }
-                } else if (kakaoPhoneNumberRaw) {
-                  // 원본 전화번호는 있지만 처리 후 null이 된 경우 (예: 형식 문제)
-                }
-              }
+                  if (kakaoEmail && profile?.email !== kakaoEmail) {
+                    profileDataToUpdate.email = kakaoEmail;
+                    needsUpdate = true;
+                  }
 
-              if (needsUpdate) {
-                profileDataToUpdate.updated_at = new Date().toISOString();
-                const { error: updateError } = await supabase
-                  .from('profiles')
-                  .update(profileDataToUpdate)
-                  .eq('id', currentSession.user.id);
-                if (updateError) {
-                  console.error('[AuthContext] Error updating profile with Kakao data:', updateError);
-                } else {
-                  // 프로필 업데이트 후 상태 다시 확인 (선택적)
-                  // await checkProfileStatus(currentSession.user.id); 
+                  if (kakaoPhoneNumber) {
+                    // 처리된 전화번호가 존재할 경우
+                    if (profile?.phone !== kakaoPhoneNumber || !profile?.phone_verified) {
+                      profileDataToUpdate.phone = kakaoPhoneNumber;
+                      profileDataToUpdate.phone_verified = true; // 카카오에서 받은 전화번호는 인증된 것으로 간주
+                      needsUpdate = true;
+                    }
+                  } else if (kakaoPhoneNumberRaw) {
+                    // 원본 전화번호는 있지만 처리 후 null이 된 경우 (예: 형식 문제)
+                  }
                 }
+
+                if (needsUpdate) {
+                  profileDataToUpdate.updated_at = new Date().toISOString();
+                  const { error: updateError } = await supabase
+                    .from('profiles')
+                    .update(profileDataToUpdate)
+                    .eq('id', currentSession.user.id);
+                  if (updateError) {
+                    console.error(
+                      '[AuthContext] Error updating profile with Kakao data:',
+                      updateError
+                    );
+                  } else {
+                    // 프로필 업데이트 후 상태 다시 확인 (선택적)
+                    // await checkProfileStatus(currentSession.user.id);
+                  }
+                }
+              } catch (kakaoApiError: unknown) {
+                let errorMessage = 'Unknown error';
+                if (axios.isAxiosError(kakaoApiError) && kakaoApiError.response?.data) {
+                  errorMessage = JSON.stringify(kakaoApiError.response.data);
+                } else if (kakaoApiError instanceof Error) {
+                  errorMessage = kakaoApiError.message;
+                }
+                console.error(
+                  '[AuthContext] Error fetching Kakao user info from API:',
+                  errorMessage
+                );
               }
-            } catch (kakaoApiError: unknown) {
-              let errorMessage = 'Unknown error';
-              if (axios.isAxiosError(kakaoApiError) && kakaoApiError.response?.data) {
-                errorMessage = JSON.stringify(kakaoApiError.response.data);
-              } else if (kakaoApiError instanceof Error) {
-                errorMessage = kakaoApiError.message;
-              }
-              console.error('[AuthContext] Error fetching Kakao user info from API:', errorMessage);
             }
           }
+        } catch (profileError) {
+          console.error('[AuthContext] Outer error fetching profile:', profileError);
+          setIsProfileComplete(false);
+          setSubscriptionStatus(null); // 오류 시 초기화
         }
-      } catch (profileError) {
-         console.error('[AuthContext] Outer error fetching profile:', profileError);
-         setIsProfileComplete(false);
-         setSubscriptionStatus(null); // 오류 시 초기화
+      } else {
+        setUser(null);
+        setIsProfileComplete(false);
+        setSubscriptionStatus(null); // 사용자 없으면 구독 상태도 초기화
       }
-    } else {
-      setUser(null);
-      setIsProfileComplete(false);
-      setSubscriptionStatus(null); // 사용자 없으면 구독 상태도 초기화
-    }
-    setLoading(false);
-  }, [supabase]);
+      setLoading(false);
+    },
+    [supabase]
+  );
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
@@ -150,7 +172,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = async () => {
     try {
       // 현재 세션이 있는지 먼저 확인 (더 확실하게는 await supabase.auth.getSession() 사용)
-      if (!session) { 
+      if (!session) {
         console.warn('[AuthContext] 이미 로그아웃된 상태이거나 세션이 없습니다.');
         setUser(null);
         // setSession(null); // session 상태는 onAuthStateChange 리스너에 의해 업데이트 될 것임
@@ -161,7 +183,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       const { error } = await supabase.auth.signOut();
-      
+
       if (error) {
         if (error.name === 'AuthSessionMissingError') {
           console.warn('[AuthContext] 로그아웃 시 서버에 이미 세션이 없었습니다:', error.message);
@@ -170,7 +192,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           throw error; // 다른 종류의 에러는 그대로 throw
         }
       }
-      
+
       // supabase.auth.signOut()이 성공했거나 AuthSessionMissingError인 경우,
       // onAuthStateChange 리스너가 session과 user를 null로 설정할 것이므로,
       // 여기서는 명시적으로 setUser(null), setSession(null)을 호출할 필요가 없을 수 있습니다.
@@ -181,21 +203,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSubscriptionStatus(null); // 로그아웃 시 구독 상태 초기화
       showToast('로그아웃 되었습니다.', 'success');
       if (router && typeof router.push === 'function') router.push('/');
-
     } catch (error: unknown) {
       console.error('로그아웃 오류:', error);
       showToast('로그아웃 중 오류가 발생했습니다.', 'error');
-      
+
       setUser(null);
       setSession(null);
       setIsProfileComplete(false);
       setSubscriptionStatus(null); // 오류 시에도 구독 상태 초기화
-      if (router && typeof router.push === 'function') { 
-          router.push('/');
+      if (router && typeof router.push === 'function') {
+        router.push('/');
       } else {
-          if (typeof window !== 'undefined') {
-              window.location.href = '/';
-          }
+        if (typeof window !== 'undefined') {
+          window.location.href = '/';
+        }
       }
     }
   };
@@ -210,11 +231,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase, // supabase 인스턴스 컨텍스트 통해 제공
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
@@ -223,4 +240,4 @@ export function useAuth() {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
-} 
+}

@@ -23,15 +23,16 @@ export default function LoginModal({ modalId }: LoginModalProps) {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    
+
     try {
       const { error } = await signInWithPassword(email, password);
-      
+
       if (error) throw error;
-      
+
       closeAuthModal();
     } catch (error: Error | unknown) {
-      const errorMessage = error instanceof Error ? error.message : '로그인 중 오류가 발생했습니다.';
+      const errorMessage =
+        error instanceof Error ? error.message : '로그인 중 오류가 발생했습니다.';
       setError(errorMessage);
     } finally {
       setLoading(false);
@@ -42,7 +43,7 @@ export default function LoginModal({ modalId }: LoginModalProps) {
   //   setLoading(true);
   //   try {
   //     const { error } = await signInWithGoogle();
-      
+
   //     if (error) throw error;
   //   } catch (error: Error | unknown) {
   //     const errorMessage = error instanceof Error ? error.message : 'Google 로그인 오류';
@@ -56,7 +57,7 @@ export default function LoginModal({ modalId }: LoginModalProps) {
     setLoading(true);
     try {
       const { error } = await signInWithKakao();
-      
+
       if (error) throw error;
     } catch (error: Error | unknown) {
       const errorMessage = error instanceof Error ? error.message : '카카오 로그인 오류';
@@ -77,15 +78,16 @@ export default function LoginModal({ modalId }: LoginModalProps) {
   return (
     <dialog id={modalId} className="modal" ref={authModalRef} onClose={resetAndClose}>
       <div className="modal-box max-w-md">
-        <button className="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" onClick={resetAndClose}>✕</button>
+        <button
+          className="btn btn-sm btn-circle btn-ghost absolute right-2 top-2"
+          onClick={resetAndClose}
+        >
+          ✕
+        </button>
         <h3 className="font-bold text-lg mb-6 text-center">로그인 / 회원가입</h3>
-        
-        {error && (
-          <div className="bg-error/10 text-error p-3 rounded-lg mb-4 text-sm">
-            {error}
-          </div>
-        )}
-        
+
+        {error && <div className="bg-error/10 text-error p-3 rounded-lg mb-4 text-sm">{error}</div>}
+
         {!showEmailForm ? (
           <>
             <p className="text-center text-sm opacity-80 mb-6">
@@ -102,15 +104,29 @@ export default function LoginModal({ modalId }: LoginModalProps) {
                 구글로 계속하기
               </button>
             </div> */}
-            
+
             <div className="flex flex-col gap-3 w-full max-w-xs mx-auto">
               <button
-                onClick={async () => { await handleKakaoLogin(); closeAuthModal();}}
+                onClick={async () => {
+                  await handleKakaoLogin();
+                  closeAuthModal();
+                }}
                 disabled={loading}
                 className="btn bg-[#FEE500] text-[#000000] border-none hover:bg-[#E6CF00] hover:text-[#000000]"
               >
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path fillRule="evenodd" clipRule="evenodd" d="M12 4C7.58172 4 4 6.78579 4 10.2c0 2.2635 1.50244 4.2699 3.77058 5.4247l-.77444 2.8937c-.0641.2384.2187.4202.4239.2726l3.32682-2.0872C11.1882 16.8135 11.5875 16.8398 12 16.8398c4.4183 0 8-2.7858 8-6.2398C20 6.78579 16.4183 4 12 4z" fill="currentColor"/>
+                <svg
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    fillRule="evenodd"
+                    clipRule="evenodd"
+                    d="M12 4C7.58172 4 4 6.78579 4 10.2c0 2.2635 1.50244 4.2699 3.77058 5.4247l-.77444 2.8937c-.0641.2384.2187.4202.4239.2726l3.32682-2.0872C11.1882 16.8135 11.5875 16.8398 12 16.8398c4.4183 0 8-2.7858 8-6.2398C20 6.78579 16.4183 4 12 4z"
+                    fill="currentColor"
+                  />
                 </svg>
                 카카오로 계속하기
               </button>
@@ -139,13 +155,13 @@ export default function LoginModal({ modalId }: LoginModalProps) {
                 <input
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={e => setEmail(e.target.value)}
                   placeholder="이메일 주소"
                   className="input input-bordered w-full"
                   required
                 />
               </div>
-              
+
               <div className="form-control">
                 <label className="label">
                   <span className="label-text">비밀번호</span>
@@ -153,29 +169,29 @@ export default function LoginModal({ modalId }: LoginModalProps) {
                 <input
                   type="password"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={e => setPassword(e.target.value)}
                   placeholder="비밀번호"
                   className="input input-bordered w-full"
                   required
                 />
               </div>
-              
-              <button
-                type="submit"
-                disabled={loading}
-                className="btn btn-primary w-full mt-2"
-              >
+
+              <button type="submit" disabled={loading} className="btn btn-primary w-full mt-2">
                 {loading ? <span className="loading loading-spinner loading-xs"></span> : '로그인'}
               </button>
             </form>
-            
+
             <div className="text-center text-sm mt-6">
               계정이 없으신가요?{' '}
-              <Link href="/signup" className="text-primary hover:underline font-medium" onClick={resetAndClose}>
+              <Link
+                href="/signup"
+                className="text-primary hover:underline font-medium"
+                onClick={resetAndClose}
+              >
                 회원가입
               </Link>
             </div>
-            
+
             <button
               type="button"
               onClick={() => {
@@ -191,4 +207,4 @@ export default function LoginModal({ modalId }: LoginModalProps) {
       </div>
     </dialog>
   );
-} 
+}

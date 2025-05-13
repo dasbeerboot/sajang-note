@@ -12,8 +12,8 @@ const config: Config & { daisyui?: { themes: string[] } } = {
         sans: ['var(--font-pretendard)', 'Pretendard', 'sans-serif'],
       },
       animation: {
-        'fadeIn': 'fadeIn 0.5s ease-in-out',
-        'slideIn': 'slideIn 0.3s ease-out',
+        fadeIn: 'fadeIn 0.5s ease-in-out',
+        slideIn: 'slideIn 0.3s ease-out',
         'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
       },
       keyframes: {
@@ -28,12 +28,10 @@ const config: Config & { daisyui?: { themes: string[] } } = {
       },
     },
   },
-  plugins: [
-    require('daisyui')
-  ],
+  plugins: [require('daisyui')],
   daisyui: {
-    themes: ['dark', 'light']
-  }
+    themes: ['dark', 'light'],
+  },
 };
 
-export default config; 
+export default config;

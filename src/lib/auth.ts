@@ -11,7 +11,7 @@ export const signInWithPassword = async (email: string, password: string) => {
     email,
     password,
   });
-  
+
   return { data, error };
 };
 
@@ -24,9 +24,9 @@ export const signInWithOtp = async (email: string) => {
     email,
     options: {
       emailRedirectTo: window.location.href,
-    }
+    },
   });
-  
+
   return { data, error };
 };
 
@@ -41,7 +41,7 @@ export const signInWithGoogle = async () => {
       redirectTo: window.location.href,
     },
   });
-  
+
   return { data, error };
 };
 
@@ -55,14 +55,14 @@ export const signInWithKakao = async () => {
     provider: 'kakao',
     options: {
       redirectTo: window.location.href,
-      scopes: 'profile_nickname,profile_image,account_email,name,phone_number'
+      scopes: 'profile_nickname,profile_image,account_email,name,phone_number',
     },
   });
-  
+
   if (error) {
     console.error('카카오 로그인 오류:', error);
   }
-  
+
   return { data, error };
 };
 
@@ -73,4 +73,4 @@ export const signOut = async () => {
   const supabase = getSupabaseBrowserClient();
   const { error } = await supabase.auth.signOut();
   return { error };
-}; 
+};

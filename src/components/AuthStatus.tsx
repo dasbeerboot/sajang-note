@@ -77,27 +77,24 @@ export default function AuthStatus() {
 
   return (
     <div className="flex items-center gap-2">
-      <button 
+      <button
         onClick={handleSubscriptionNavigation}
         className="btn btn-sm btn-ghost text-white hover:bg-white/20 flex items-center gap-1"
         title="구독 관리"
       >
-        <CreditCard size={18} /> 
+        <CreditCard size={18} />
         <span className="hidden sm:inline">구독 관리</span>
       </button>
 
       {user ? (
         <div ref={dropdownRef} className="relative">
-          <button 
-            onClick={toggleDropdown} 
-            className="btn btn-sm btn-ghost btn-circle avatar"
-          >
+          <button onClick={toggleDropdown} className="btn btn-sm btn-ghost btn-circle avatar">
             {user.user_metadata.avatar_url ? (
               <div className="w-8 rounded-full">
-                <Image 
-                  src={user.user_metadata.avatar_url} 
+                <Image
+                  src={user.user_metadata.avatar_url}
                   alt="User avatar"
-                  width={32} 
+                  width={32}
                   height={32}
                   className="rounded-full"
                 />
@@ -108,12 +105,12 @@ export default function AuthStatus() {
               </div>
             )}
           </button>
-          
+
           {isDropdownOpen && (
             <ul className="menu menu-sm absolute right-0 mt-3 z-[1] p-2 shadow bg-base-100 rounded-box w-52 text-base-content">
               <li>
-                <Link 
-                  href="/profile" 
+                <Link
+                  href="/profile"
                   className="justify-between text-base-content hover:bg-base-300"
                   onClick={closeDropdown}
                 >
@@ -121,8 +118,8 @@ export default function AuthStatus() {
                 </Link>
               </li>
               <li>
-                <Link 
-                  href="/my-places" 
+                <Link
+                  href="/my-places"
                   className="justify-between text-base-content hover:bg-base-300"
                   onClick={closeDropdown}
                 >
@@ -130,11 +127,11 @@ export default function AuthStatus() {
                 </Link>
               </li>
               <li>
-                <button 
+                <button
                   onClick={() => {
                     closeDropdown();
                     signOut();
-                  }} 
+                  }}
                   className="text-base-content hover:bg-base-300 w-full text-left"
                 >
                   로그아웃
@@ -144,8 +141,8 @@ export default function AuthStatus() {
           )}
         </div>
       ) : (
-        <button 
-          onClick={openAuthModal} 
+        <button
+          onClick={openAuthModal}
           className={`btn btn-sm btn-ghost text-white hover:bg-white/20`}
         >
           로그인
@@ -153,4 +150,4 @@ export default function AuthStatus() {
       )}
     </div>
   );
-} 
+}

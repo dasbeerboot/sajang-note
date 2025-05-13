@@ -26,4 +26,4 @@ export async function GET(request: Request) {
   // This could be the homepage or a protected route
   // If the URL has a #fragment (session info), it will be preserved
   return NextResponse.redirect(new URL('/', requestUrl.origin));
-} 
+}

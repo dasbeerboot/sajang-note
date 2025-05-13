@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 @plugin "daisyui";
 
 @tailwind base;
@@ -6,10 +6,10 @@
 @tailwind utilities;
 
 @plugin "daisyui/theme" {
-  name: "dark";
+  name: 'dark';
   default: false;
   prefersdark: false;
-  color-scheme: "dark";
+  color-scheme: 'dark';
   --color-base-100: oklch(25.33% 0.016 252.42);
   --color-base-200: oklch(23.26% 0.014 253.1);
   --color-base-300: oklch(21.15% 0.012 254.09);
@@ -41,10 +41,10 @@
 }
 
 @plugin "daisyui/theme" {
-  name: "light";
+  name: 'light';
   default: false;
   prefersdark: false;
-  color-scheme: "light";
+  color-scheme: 'light';
   --color-base-100: oklch(98% 0.003 247.858);
   --color-base-200: oklch(98% 0 0);
   --color-base-300: oklch(95% 0 0);
@@ -86,7 +86,18 @@ body {
 }
 
 /* 한글 텍스트 줄바꿈 설정 */
-p, h1, h2, h3, h4, h5, h6, span, div, button, a, label {
+p,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+span,
+div,
+button,
+a,
+label {
   word-break: keep-all;
   overflow-wrap: break-word;
 }
@@ -97,13 +108,14 @@ p, h1, h2, h3, h4, h5, h6, span, div, button, a, label {
   overflow-wrap: break-word;
 }
 
-input:focus, button:focus {
+input:focus,
+button:focus {
   outline: none;
 }
 
 /* 마이크로인터랙션 */
 .input:focus {
-  border-color: #00E0FF !important;
+  border-color: #00e0ff !important;
 }
 
 .btn-primary:hover {

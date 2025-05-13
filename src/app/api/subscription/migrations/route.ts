@@ -7,25 +7,27 @@ export async function POST(request: Request) {
   try {
     // 인증 확인
     const supabase = createServerComponentClient({ cookies });
-    const { data: { session } } = await supabase.auth.getSession();
-    
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
     if (!session) {
       return NextResponse.json({ error: '인증되지 않은 요청입니다.' }, { status: 401 });
     }
-    
+
     // 관리자 권한 확인 (예: 특정 이메일 또는 역할)
     const adminEmails = process.env.ADMIN_EMAILS?.split(',') || [];
     if (!adminEmails.includes(session.user.email || '')) {
       return NextResponse.json({ error: '권한이 없습니다.' }, { status: 403 });
     }
-    
+
     // 요청 데이터 파싱
     const { action } = await request.json();
-    
+
     if (action === 'create_tables') {
       // 구독 플랜 테이블 생성
       await supabase.rpc('create_subscription_tables');
-      
+
       // 기본 구독 플랜 추가
       await supabase.from('subscription_plans').insert([
         {
@@ -34,7 +36,7 @@ export async function POST(request: Request) {
           price: 9900,
           interval: 'monthly',
           features: ['무제한 거래처 관리', '고급 통계 기능', '자동 알림 서비스'],
-          active: true
+          active: true,
         },
         {
           name: '프리미엄 연간',
@@ -42,18 +44,21 @@ export async function POST(request: Request) {
           price: 99000,
           interval: 'yearly',
           features: ['무제한 거래처 관리', '고급 통계 기능', '자동 알림 서비스', '우선 기술 지원'],
-          active: true
-        }
+          active: true,
+        },
       ]);
-      
+
       // 구독 시작 함수 생성
       await supabase.rpc('create_subscription_functions');
-      
-      return NextResponse.json({ success: true, message: '구독 시스템 테이블과 함수가 생성되었습니다.' });
+
+      return NextResponse.json({
+        success: true,
+        message: '구독 시스템 테이블과 함수가 생성되었습니다.',
+      });
     } else if (action === 'update_profiles') {
       // profiles 테이블에 구독 관련 필드 추가
       await supabase.rpc('update_profiles_table');
-      
+
       return NextResponse.json({ success: true, message: 'profiles 테이블이 업데이트되었습니다.' });
     } else {
       return NextResponse.json({ error: '유효하지 않은 액션입니다.' }, { status: 400 });
@@ -64,6 +69,9 @@ export async function POST(request: Request) {
       errorMessage = error.message;
     }
     console.error('마이그레이션 오류:', errorMessage);
-    return NextResponse.json({ error: '마이그레이션 처리 중 오류가 발생했습니다.', details: errorMessage }, { status: 500 });
+    return NextResponse.json(
+      { error: '마이그레이션 처리 중 오류가 발생했습니다.', details: errorMessage },
+      { status: 500 }
+    );
   }
-} 
+}

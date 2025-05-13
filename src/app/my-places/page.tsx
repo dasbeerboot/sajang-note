@@ -5,7 +5,12 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
-import { Storefront, PencilSimple, Trash, ClockCounterClockwise, Warning, Plus } from '@phosphor-icons/react';
+import {
+  PencilSimple,
+  Trash,
+  ClockCounterClockwise,
+  Warning,
+} from '@phosphor-icons/react';
 import PlaceCard from '@/components/PlaceCard';
 import AddPlaceButton from '@/components/AddPlaceButton';
 
@@ -49,11 +54,11 @@ export default function MyPlacesPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const { showToast } = useToast();
-  
+
   const [data, setData] = useState<MyPlacesData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   // 모달 상태
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedPlace, setSelectedPlace] = useState<PlaceData | null>(null);
@@ -64,7 +69,7 @@ export default function MyPlacesPage() {
     if (loading) {
       return null; // 아직 인증 상태 로딩 중이면 요청하지 않음
     }
-    
+
     if (!user) {
       setError('로그인이 필요합니다.');
       setIsLoading(false);
@@ -75,11 +80,11 @@ export default function MyPlacesPage() {
       setIsLoading(true);
       const response = await fetch('/api/my-places');
       const result = await response.json();
-      
+
       if (!response.ok) {
         throw new Error(result.error || '데이터를 불러오는 데 실패했습니다.');
       }
-      
+
       // 매장 데이터 처리 - 이미지와 리뷰 정보 추출
       if (result.places && Array.isArray(result.places)) {
         result.places = result.places.map((place: any) => {
@@ -88,18 +93,18 @@ export default function MyPlacesPage() {
           if (representativeImages && representativeImages.length > 0) {
             place.place_image_url = representativeImages[0];
           }
-          
+
           // 리뷰 정보 추출
           const basicInfo = place.crawled_data?.basic_info;
           if (basicInfo) {
             place.blog_reviews_count = basicInfo.blog_review_count || 0;
             place.visitor_reviews_count = basicInfo.visitor_review_count || 0;
           }
-          
+
           return place;
         });
       }
-      
+
       setData(result);
       setError(null); // 성공 시 이전 오류 초기화
       return result;
@@ -119,27 +124,27 @@ export default function MyPlacesPage() {
   // 매장 삭제 처리
   const handlePlaceDelete = async () => {
     if (!selectedPlace) return;
-    
+
     try {
       // 모달 즉시 닫기
       const placeName = selectedPlace.place_name;
       const placeId = selectedPlace.id;
       setShowDeleteModal(false);
-      
+
       setIsProcessing(true);
       showToast(`${placeName} 매장을 삭제하는 중입니다.`, 'info');
-      
+
       const response = await fetch(`/api/places/${placeId}`, {
         method: 'DELETE',
       });
-      
+
       if (!response.ok) {
         const result = await response.json();
         throw new Error(result.error || '매장 삭제에 실패했습니다.');
       }
-      
+
       showToast(`${placeName} 매장이 성공적으로 삭제되었습니다.`, 'success');
-      
+
       // 데이터 다시 가져오기
       fetchData();
     } catch (err) {
@@ -159,10 +164,10 @@ export default function MyPlacesPage() {
   // 일자 포맷팅 함수
   const formatDate = (dateString: string): string => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('ko-KR', { 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
+    return date.toLocaleDateString('ko-KR', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
     });
   };
 
@@ -202,10 +207,13 @@ export default function MyPlacesPage() {
           <button className="btn btn-ghost" onClick={() => router.push('/')}>
             홈으로 돌아가기
           </button>
-          <button className="btn btn-primary" onClick={() => {
-            // AuthContext에서 처리하는 방식에 따라 수정할 수 있음
-            router.push('/?login=true');
-          }}>
+          <button
+            className="btn btn-primary"
+            onClick={() => {
+              // AuthContext에서 처리하는 방식에 따라 수정할 수 있음
+              router.push('/?login=true');
+            }}
+          >
             로그인하기
           </button>
         </div>
@@ -247,23 +255,27 @@ export default function MyPlacesPage() {
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
       <h1 className="text-2xl font-bold mb-2">내 매장 관리</h1>
-      
+
       {/* 구독 상태 카드 */}
       <div className="card bg-base-200 p-4 mb-6">
         <div className="flex flex-wrap gap-4 justify-between items-center">
           <div>
             <h2 className="text-xl font-semibold">
-              {data.profile.subscription_tier === 'free' ? '무료 플랜' : 
-               data.profile.subscription_tier === 'premium' ? '프리미엄 플랜' : 
-               data.profile.subscription_tier === 'pro' ? '프로 플랜' : 
-               data.profile.subscription_tier === 'basic' ? '베이직 플랜' : 
-               data.profile.subscription_tier}
+              {data.profile.subscription_tier === 'free'
+                ? '무료 플랜'
+                : data.profile.subscription_tier === 'premium'
+                  ? '프리미엄 플랜'
+                  : data.profile.subscription_tier === 'pro'
+                    ? '프로 플랜'
+                    : data.profile.subscription_tier === 'basic'
+                      ? '베이직 플랜'
+                      : data.profile.subscription_tier}
             </h2>
             <p className="text-sm">
               매장 {data.profile.used_places}/{data.profile.max_places}개 등록됨
             </p>
           </div>
-          
+
           {/* 변경 정보 */}
           <div className="flex flex-col gap-1">
             {/* 남은 변경 횟수 표시 */}
@@ -274,7 +286,14 @@ export default function MyPlacesPage() {
                   <span className="text-primary">첫 변경 기회 사용 가능 (무료)</span>
                 ) : (
                   <span>
-                    7일 이내 변경 가능 횟수: <span className={data.change_info.remaining_place_changes > 0 ? "text-success font-medium" : "text-error font-medium"}>
+                    7일 이내 변경 가능 횟수:{' '}
+                    <span
+                      className={
+                        data.change_info.remaining_place_changes > 0
+                          ? 'text-success font-medium'
+                          : 'text-error font-medium'
+                      }
+                    >
                       {data.change_info.remaining_place_changes}회
                     </span>
                   </span>
@@ -288,7 +307,8 @@ export default function MyPlacesPage() {
                   <span className="text-success">매장 변경 가능</span>
                 ) : (
                   <span>
-                    변경 횟수 소진시 다음 매장 변경 가능일: {formatDate(data.change_info.next_change_available_date!)}
+                    변경 횟수 소진시 다음 매장 변경 가능일:{' '}
+                    {formatDate(data.change_info.next_change_available_date!)}
                     (D-{getRemainingDays(data.change_info.next_change_available_date!)}일)
                   </span>
                 )}
@@ -297,10 +317,10 @@ export default function MyPlacesPage() {
           </div>
         </div>
       </div>
-      
+
       {/* 매장 목록 */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {data.places.map((place) => (
+        {data.places.map(place => (
           <PlaceCard
             key={place.id}
             place={place}
@@ -310,16 +330,16 @@ export default function MyPlacesPage() {
             className="cursor-pointer"
           />
         ))}
-        
+
         {/* 매장 추가 버튼 카드 */}
-        <AddPlaceButton 
+        <AddPlaceButton
           onClick={fetchData}
           canAddPlace={data.profile.used_places < data.profile.max_places}
           maxPlaces={data.profile.max_places}
           usedPlaces={data.profile.used_places}
         />
       </div>
-      
+
       {/* 매장 삭제 모달 */}
       {showDeleteModal && (
         <div className="modal modal-open animate-fadeIn">
@@ -337,29 +357,30 @@ export default function MyPlacesPage() {
             >
               ✕
             </button>
-            
+
             <div className="divider my-1"></div>
-            
+
             <div className="py-2">
               <div className="bg-error/5 p-4 rounded-lg border border-error/20 mb-4">
                 <p className="text-base-content">
-                  <span className="font-bold">{selectedPlace?.place_name}</span> 매장을 정말 삭제하시겠습니까?
+                  <span className="font-bold">{selectedPlace?.place_name}</span> 매장을 정말
+                  삭제하시겠습니까?
                 </p>
                 <p className="text-sm text-base-content/80 mt-2">
                   삭제 후에는 복구할 수 없으며, 모든 AI 카피도 함께 삭제됩니다.
                 </p>
               </div>
             </div>
-            
+
             <div className="modal-action mt-6">
-              <button 
+              <button
                 className="btn btn-outline btn-sm"
                 onClick={() => setShowDeleteModal(false)}
                 disabled={isProcessing}
               >
                 취소
               </button>
-              <button 
+              <button
                 className="btn btn-error btn-sm"
                 onClick={handlePlaceDelete}
                 disabled={isProcessing}
@@ -369,13 +390,18 @@ export default function MyPlacesPage() {
                     <span className="loading loading-spinner loading-xs"></span>
                     처리 중...
                   </>
-                ) : '삭제하기'}
+                ) : (
+                  '삭제하기'
+                )}
               </button>
             </div>
           </div>
-          <div className="modal-backdrop bg-base-300 bg-opacity-50" onClick={() => !isProcessing && setShowDeleteModal(false)}></div>
+          <div
+            className="modal-backdrop bg-base-300 bg-opacity-50"
+            onClick={() => !isProcessing && setShowDeleteModal(false)}
+          ></div>
         </div>
       )}
     </div>
   );
-} 
+}
