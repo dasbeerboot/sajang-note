@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Image from 'next/image';
-import { CaretUp, CaretDown } from '@phosphor-icons/react';
+import { CaretUp, CaretDown, MagnifyingGlass, ChatCircle } from '@phosphor-icons/react';
 
 interface PlaceData { // page.tsx와 타입을 공유하거나, 필요한 props만 받도록 개선 필요
   id: string;
@@ -23,17 +23,26 @@ interface PlaceData { // page.tsx와 타입을 공유하거나, 필요한 props�
   };
 }
 
-interface PlaceSummarySectionProps {
-  placeData: PlaceData;
+interface ReviewCounts {
+  blogReviews?: number;
+  visitorReviews?: number;
 }
 
-export default function PlaceSummarySection({ placeData }: PlaceSummarySectionProps) {
+interface PlaceSummarySectionProps {
+  placeData: PlaceData;
+  reviewCounts?: ReviewCounts;
+}
+
+export default function PlaceSummarySection({ placeData, reviewCounts }: PlaceSummarySectionProps) {
   const [isCollapsed, setIsCollapsed] = useState(false); 
 
   const { crawled_data, place_name } = placeData;
   const representativeImage = crawled_data?.basic_info?.representative_images?.[0] || `https://via.placeholder.com/800x600.png?text=${encodeURIComponent(place_name || 'Image')}`;
   const summaryDescription = crawled_data?.detailed_info?.description || "매장 설명을 불러오는 데 실패했습니다.";
   const keywords = crawled_data?.review_analysis?.positive_keywords_from_reviews || [];
+
+  // 리뷰 데이터 유무 확인
+  const hasReviewData = reviewCounts && (reviewCounts.blogReviews || reviewCounts.visitorReviews);
 
   return (
     <section className={`mb-10 bg-base-100 rounded-xl shadow-sm transition-all duration-300 ease-in-out overflow-hidden ${isCollapsed ? 'p-3' : 'p-4 sm:p-6'}`}> 
@@ -86,6 +95,24 @@ export default function PlaceSummarySection({ placeData }: PlaceSummarySectionPr
                   {crawled_data?.basic_info?.phone_number && <p><span className="font-semibold">전화:</span> {crawled_data.basic_info.phone_number}</p>}
                   {crawled_data?.detailed_info?.opening_hours_raw && <p><span className="font-semibold">영업:</span> {crawled_data.detailed_info.opening_hours_raw}</p>}
                 </div>
+                
+                {/* 리뷰 정보 표시 */}
+                {hasReviewData && (
+                  <div className="flex flex-wrap gap-2">
+                    {reviewCounts?.blogReviews !== undefined && reviewCounts.blogReviews > 0 && (
+                      <div className="badge badge-md gap-1 bg-base-200">
+                        <MagnifyingGlass size={14} />
+                        <span>블로그 리뷰 {reviewCounts.blogReviews}개</span>
+                      </div>
+                    )}
+                    {reviewCounts?.visitorReviews !== undefined && reviewCounts.visitorReviews > 0 && (
+                      <div className="badge badge-md gap-1 bg-base-200">
+                        <ChatCircle size={14} />
+                        <span>방문자 리뷰 {reviewCounts.visitorReviews}개</span>
+                      </div>
+                    )}
+                  </div>
+                )}
                 
                 {keywords.length > 0 && (
                   <div className="flex flex-wrap gap-1.5 mt-auto pt-2"> 

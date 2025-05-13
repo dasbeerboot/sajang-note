@@ -1,0 +1,137 @@
+import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+import { createServerClient } from '@supabase/ssr';
+import { createClient } from '@supabase/supabase-js';
+
+export const dynamic = 'force-dynamic';
+
+// 서비스 롤 키를 사용하는 Supabase 클라이언트 생성
+function createServiceClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+}
+
+export async function GET() {
+  try {
+    // 쿠키 스토어 가져오기
+    const cookieStore = await cookies();
+    
+    // Supabase 클라이언트 생성
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get(name: string) {
+            return cookieStore.get(name)?.value;
+          },
+          set(name: string, value: string, options: Record<string, unknown>) {
+            cookieStore.set({ name, value, ...options });
+          },
+          remove(name: string, options: Record<string, unknown>) {
+            cookieStore.delete({ name, ...options });
+          },
+        },
+      }
+    );
+
+    // 현재 로그인한 사용자 확인
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError || !session) {
+      return NextResponse.json({ error: '로그인이 필요합니다.' }, { status: 401 });
+    }
+    
+    const userId = session.user.id;
+    const serviceClient = createServiceClient();
+    
+    // 사용자 프로필 정보 조회
+    const { data: profileData, error: profileError } = await serviceClient
+      .from('profiles')
+      .select('max_places, next_place_change_date, first_place_change_used, subscription_tier')
+      .eq('id', userId)
+      .single();
+      
+    if (profileError) {
+      console.error('프로필 조회 오류:', profileError);
+      return NextResponse.json({ error: '사용자 정보를 찾을 수 없습니다.' }, { status: 404 });
+    }
+    
+    // 사용자 매장 목록 조회
+    const { data: placesData, error: placesError } = await serviceClient
+      .from('places')
+      .select(`
+        id, 
+        place_id, 
+        place_name, 
+        place_address, 
+        place_url, 
+        status, 
+        created_at, 
+        content_last_changed_at,
+        crawled_data
+      `)
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+      
+    if (placesError) {
+      console.error('매장 조회 오류:', placesError);
+      return NextResponse.json({ error: '매장 정보 조회 중 오류가 발생했습니다.' }, { status: 500 });
+    }
+    
+    // 매장별 카피 생성 수 조회
+    const { data: copiesData, error: copiesError } = await serviceClient
+      .from('ai_generated_copies')
+      .select('place_id')
+      .eq('user_id', userId);
+      
+    const copiesCountMap = new Map();
+    if (!copiesError && copiesData) {
+      // 각 장소별로 카피 수를 계산
+      copiesData.forEach(item => {
+        const count = copiesCountMap.get(item.place_id) || 0;
+        copiesCountMap.set(item.place_id, count + 1);
+      });
+    }
+    
+    // 결과 데이터 구성
+    const placesWithCopiesCount = placesData.map((place) => ({
+      ...place,
+      copies_count: copiesCountMap.get(place.id) || 0
+    }));
+    
+    // 다음 변경 가능 여부 확인
+    const now = new Date();
+    let canChangePlace = true;
+    let nextChangeAvailableDate = null;
+    
+    if (profileData.next_place_change_date && new Date(profileData.next_place_change_date) > now) {
+      canChangePlace = false;
+      nextChangeAvailableDate = profileData.next_place_change_date;
+    }
+    
+    // 와일드카드 사용 가능 여부 확인
+    const hasWildcardAvailable = !profileData.first_place_change_used;
+    
+    return NextResponse.json({
+      profile: {
+        max_places: profileData.max_places,
+        used_places: placesData.length,
+        subscription_tier: profileData.subscription_tier,
+        next_place_change_date: profileData.next_place_change_date,
+      },
+      places: placesWithCopiesCount,
+      change_info: {
+        can_change_place: canChangePlace || hasWildcardAvailable,
+        next_change_available_date: nextChangeAvailableDate,
+        has_wildcard_available: hasWildcardAvailable
+      }
+    });
+    
+  } catch (error: unknown) {
+    console.error('내 매장 목록 조회 API 오류:', error);
+    const errorMsg = error instanceof Error ? error.message : '알 수 없는 오류';
+    return NextResponse.json({ error: '요청 처리 중 오류가 발생했습니다.', details: errorMsg }, { status: 500 });
+  }
+} 

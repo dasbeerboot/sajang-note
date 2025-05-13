@@ -66,7 +66,8 @@ export function getCopyTypeLabel(copyType: string): string {
     'danggn_title': '당근 광고 제목',
     'danggn_post': '당근 가게 소식',
     'powerlink_ad': '네이버 파워링크 광고문구',
-    'naver_place_description': '네이버 플레이스 광고문구'
+    'naver_place_description': '네이버 플레이스 광고문구',
+    'instagram_post': '인스타(메타) 포스팅'
   };
   
   return typeLabelMap[copyType] || '카피';

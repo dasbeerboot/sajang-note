@@ -45,10 +45,8 @@ export default function Toast({
   if (!visible) return null;
 
   return (
-    <div className="toast toast-bottom toast-center z-50">
-      <div className={`px-6 py-3 rounded-lg text-sm shadow-md ${getTypeStyle()}`}>
-        <span>{message}</span>
-      </div>
+    <div className={`px-6 py-3 rounded-lg text-sm shadow-lg mb-2 ${getTypeStyle()} animate-fadeIn pointer-events-auto`}>
+      <span>{message}</span>
     </div>
   );
 } 

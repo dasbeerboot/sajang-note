@@ -10,6 +10,30 @@ import { MagicWand } from '@phosphor-icons/react';
 import Link from 'next/link';
 import AILoadingState from '@/components/AILoadingState';
 
+interface BasicInfo {
+  representative_images?: string[];
+  phone_number?: string;
+  blog_review_count?: number;
+  visitor_review_count?: number;
+}
+
+interface DetailedInfo {
+  description?: string;
+  opening_hours_raw?: string;
+}
+
+interface ReviewAnalysis {
+  positive_keywords_from_reviews?: string[];
+  blog_reviews_count?: number;
+  visitor_reviews_count?: number;
+}
+
+interface CrawledData {
+  basic_info?: BasicInfo;
+  detailed_info?: DetailedInfo;
+  review_analysis?: ReviewAnalysis;
+}
+
 interface PlaceData { 
   id: string;
   user_id: string; 
@@ -17,13 +41,16 @@ interface PlaceData {
   place_name?: string;
   place_address?: string;
   place_url?: string;
+  place_image_url?: string;
   status?: 'completed' | 'processing' | 'failed';
-  crawled_data?: Record<string, unknown>; 
+  crawled_data?: CrawledData; 
   error_message?: string | null;
   created_at: string;
   updated_at: string;
   last_crawled_at?: string | null;
   content_last_changed_at?: string | null;
+  blog_reviews_count?: number;
+  visitor_reviews_count?: number;
 }
 
 interface CopyMenuItem {
@@ -45,8 +72,9 @@ type UserType = {
 const aiCopyMenuItemsData: CopyMenuItem[] = [
   { id: 'danggn_title', label: '당근 광고 제목' },
   { id: 'danggn_post', label: '당근 가게 소식' },
-  { id: 'powerlink_ad', label: '네이버 파워링크' },
-  { id: 'naver_place_description', label: '플레이스 소개글' },
+  { id: 'powerlink_ad', label: '네이버 파워링크 광고문구' },
+  { id: 'naver_place_description', label: '네이버 플레이스 광고문구' },
+  { id: 'instagram_post', label: '인스타(메타) 포스팅' },
 ];
 
 export default function PlaceDetailClient({ 
@@ -99,6 +127,17 @@ export default function PlaceDetailClient({
     async function fetchData() {
       if (initialPlaceData) {
         // 이미 서버에서 데이터를 전달받은 경우는 추가 로딩이 필요 없음
+        // 이미지 URL 추가
+        const representativeImages = initialPlaceData?.crawled_data?.basic_info?.representative_images;
+        if (representativeImages && representativeImages.length > 0) {
+          const placeWithImage = {
+            ...initialPlaceData,
+            place_image_url: representativeImages[0]
+          };
+          setPlaceData(placeWithImage);
+        } else {
+          setPlaceData(initialPlaceData);
+        }
         return;
       }
 
@@ -144,7 +183,21 @@ export default function PlaceDetailClient({
         return;
       }
 
-      setPlaceData(data as PlaceData);
+      // 이미지 URL 추가
+      const placeData = data as PlaceData;
+      const images = placeData?.crawled_data?.basic_info?.representative_images;
+      if (images && images.length > 0) {
+        placeData.place_image_url = images[0];
+      }
+
+      // 블로그 리뷰 수와 방문자 리뷰 수 추출
+      const basicInfo = placeData?.crawled_data?.basic_info;
+      if (basicInfo) {
+        placeData.blog_reviews_count = basicInfo.blog_review_count || 0;
+        placeData.visitor_reviews_count = basicInfo.visitor_review_count || 0;
+      }
+
+      setPlaceData(placeData);
       setIsLoadingPage(false);
     }
 
@@ -347,13 +400,16 @@ export default function PlaceDetailClient({
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
       <h1 className="text-2xl font-bold mb-6 flex items-center">
-        <span className="mr-2">{placeData.place_name}</span>
-        <span className="text-sm font-normal text-base-content/60">
-          {placeData.place_address?.split(' ').slice(-1)[0]}
-        </span>
+        <span className="mr-2">광고 카피 생성하기</span>
       </h1>
       
-      <PlaceSummarySection placeData={placeData} />
+      <PlaceSummarySection 
+        placeData={placeData} 
+        reviewCounts={{
+          blogReviews: placeData.blog_reviews_count,
+          visitorReviews: placeData.visitor_reviews_count
+        }}
+      />
       
       <div className="mt-8 mb-4">
         <h2 className="text-xl font-bold mb-4 flex items-center">

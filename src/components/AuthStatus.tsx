@@ -6,11 +6,14 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { User, CreditCard } from '@phosphor-icons/react';
 import { useRouter } from 'next/navigation';
+import { useRef, useState, useEffect } from 'react';
 
 export default function AuthStatus() {
   const { user, loading, signOut, subscriptionStatus } = useAuth();
   const { openAuthModal } = useAuthModal(); // openAuthModal 가져오기 (로그인 버튼용)
   const router = useRouter();
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const handleSubscriptionNavigation = () => {
     // 로그인 상태에 따라 분기
@@ -26,6 +29,39 @@ export default function AuthStatus() {
       router.push('/subscription/checkout');
     }
   };
+
+  // 클릭 이벤트 핸들러
+  const handleOutsideClick = (e: Event) => {
+    if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+      setIsDropdownOpen(false);
+    }
+  };
+
+  // 드롭다운 토글
+  const toggleDropdown = () => {
+    setIsDropdownOpen(prev => !prev);
+  };
+
+  // 드롭다운 닫기
+  const closeDropdown = () => {
+    setIsDropdownOpen(false);
+  };
+
+  // 외부 클릭 이벤트 리스너
+  useEffect(() => {
+    if (isDropdownOpen) {
+      document.addEventListener('mousedown', handleOutsideClick);
+      document.addEventListener('touchstart', handleOutsideClick);
+    } else {
+      document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener('touchstart', handleOutsideClick);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener('touchstart', handleOutsideClick);
+    };
+  }, [isDropdownOpen]);
 
   if (loading) {
     return (
@@ -51,8 +87,11 @@ export default function AuthStatus() {
       </button>
 
       {user ? (
-        <div className="dropdown dropdown-end">
-          <label tabIndex={0} className="btn btn-sm btn-ghost btn-circle avatar">
+        <div ref={dropdownRef} className="relative">
+          <button 
+            onClick={toggleDropdown} 
+            className="btn btn-sm btn-ghost btn-circle avatar"
+          >
             {user.user_metadata.avatar_url ? (
               <div className="w-8 rounded-full">
                 <Image 
@@ -68,15 +107,41 @@ export default function AuthStatus() {
                 <User size={18} weight="fill" className="text-white" />
               </div>
             )}
-          </label>
-          <ul tabIndex={0} className="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow bg-base-100 rounded-box w-52 text-base-content">
-            <li>
-              <Link href="/profile" className="justify-between text-base-content hover:bg-base-300">
-                프로필
-              </Link>
-            </li>
-            <li><button onClick={signOut} className="text-base-content hover:bg-base-300 w-full text-left">로그아웃</button></li>
-          </ul>
+          </button>
+          
+          {isDropdownOpen && (
+            <ul className="menu menu-sm absolute right-0 mt-3 z-[1] p-2 shadow bg-base-100 rounded-box w-52 text-base-content">
+              <li>
+                <Link 
+                  href="/profile" 
+                  className="justify-between text-base-content hover:bg-base-300"
+                  onClick={closeDropdown}
+                >
+                  프로필
+                </Link>
+              </li>
+              <li>
+                <Link 
+                  href="/my-places" 
+                  className="justify-between text-base-content hover:bg-base-300"
+                  onClick={closeDropdown}
+                >
+                  내 매장 관리
+                </Link>
+              </li>
+              <li>
+                <button 
+                  onClick={() => {
+                    closeDropdown();
+                    signOut();
+                  }} 
+                  className="text-base-content hover:bg-base-300 w-full text-left"
+                >
+                  로그아웃
+                </button>
+              </li>
+            </ul>
+          )}
         </div>
       ) : (
         <button 

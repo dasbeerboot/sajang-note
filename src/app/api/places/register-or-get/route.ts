@@ -83,18 +83,27 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: '유효한 네이버 플레이스 URL이 아니거나, URL에서 장소 ID를 추출할 수 없습니다.' }, { status: 400 });
     }
 
-    const cookieStore = cookies();
+    // Supabase 클라이언트 초기화 - 쿠키 정보 참고 재작성
+    const cookieStore = await cookies();
+    
     const supabaseUserClient = createServerClient(
       supabaseUrl,
       supabaseAnonKey,
       {
         cookies: {
-          get(name: string) { return cookieStore.get(name)?.value; },
-          set(name: string, value: string, options: CookieOptions) { try { cookieStore.set({ name, value, ...options }); } catch {} },
-          remove(name: string, options: CookieOptions) { try { cookieStore.set({ name, value: '', ...options }); } catch {} },
+          get(name: string) {
+            return cookieStore.get(name)?.value;
+          },
+          set(name: string, value: string, options: Record<string, unknown>) {
+            cookieStore.set({ name, value, ...options });
+          },
+          remove(name: string, options: Record<string, unknown>) {
+            cookieStore.delete({ name, ...options });
+          },
         },
       }
     );
+    
     const { data: { user }, error: userError } = await supabaseUserClient.auth.getUser();
 
     if (userError || !user) {
@@ -166,42 +175,18 @@ export async function POST(request: Request) {
       }, { status: 403 });
     }
 
-    const now = new Date().toISOString();
-    const { data: initialPlaceRecord, error: initialInsertError } = await supabaseAdmin
-      .from('places')
-      .insert({
-        user_id: userId,
-        place_id: naverPlaceId,
-        place_url: originalUrl, // 사용자가 입력한 원본 URL 저장
-        status: 'processing',
-        created_at: now,
-        updated_at: now,
-        content_last_changed_at: now,
-        last_crawled_at: null,
-        // place_name, crawled_data는 Edge Function에서 채움
-      })
-      .select('id')
-      .single();
-
-    if (initialInsertError || !initialPlaceRecord) {
-      console.error('초기 매장 정보 저장 오류:', initialInsertError?.message);
-      return NextResponse.json({ error: '매장 정보 초기 저장 중 오류 발생', details: initialInsertError?.message }, { status: 500 });
-    }
-    const placePkId = initialPlaceRecord.id;
-
     // Firecrawl API 키 확인
     if (!firecrawlApiKey) {
-      console.error(`[API Setup Error] Firecrawl API 키가 설정되지 않았습니다. place_pk_id: ${placePkId}`);
-      await supabaseAdmin.from('places').update({ status: 'failed', error_message: '시스템 오류: Firecrawl API 키 미설정' }).eq('id', placePkId);
+      console.error(`[API Setup Error] Firecrawl API 키가 설정되지 않았습니다.`);
       return NextResponse.json({ error: 'URL 정보 수집 서비스 설정 오류입니다. 관리자에게 문의하세요.' }, { status: 503 });
     }
     
-    // 2. Firecrawl 호출을 위한 URL 표준화
+    // 1. 먼저 크롤링 수행 - 성공 시에만 DB에 저장
     const standardizedUrlForFirecrawl = `https://m.place.naver.com/restaurant/${naverPlaceId}/home`;
-
     let firecrawlData;
+
     try {
-      console.log(`[Firecrawl] 매장 ${placePkId} 정보 수집 시작: ${standardizedUrlForFirecrawl}`);
+      console.log(`[Firecrawl] 매장 정보 수집 시작: ${standardizedUrlForFirecrawl}`);
       const firecrawlApiUrl = 'https://api.firecrawl.dev/v1/scrape';
       const payload = {
         url: standardizedUrlForFirecrawl, 
@@ -223,30 +208,54 @@ export async function POST(request: Request) {
 
       if (!response.ok) {
         const errorBody = await response.text();
-        console.error(`[Firecrawl] API Error (${response.status}) for place_pk_id ${placePkId}: ${errorBody}`);
+        console.error(`[Firecrawl] API Error (${response.status}): ${errorBody}`);
         throw new Error(`Firecrawl API 요청 실패 (${response.status}): ${errorBody || response.statusText}`);
       }
 
       const result = await response.json();
       
       if (!result.success || !result.data || !result.data.markdown || !result.data.metadata) {
-        console.error(`[Firecrawl] API 응답 성공했으나 데이터 누락 for place_pk_id ${placePkId}`);
+        console.error(`[Firecrawl] API 응답 성공했으나 데이터 누락`);
         throw new Error('Firecrawl API에서 유효한 마크다운 또는 메타데이터를 가져오지 못했습니다.');
       }
+      
       firecrawlData = { 
         markdown: result.data.markdown,
         metadata: result.data.metadata,
       };
-      console.log(`[Firecrawl] 매장 ${placePkId} 정보 수집 완료`);
+      console.log(`[Firecrawl] 매장 정보 수집 완료`);
 
     } catch (e: unknown) {
       const errorMsg = e instanceof Error ? e.message : '알 수 없는 오류';
-      console.error(`[Firecrawl] API 호출/처리 중 심각한 오류 for place_pk_id ${placePkId}:`, e);
-      await supabaseAdmin.from('places').update({ status: 'failed', error_message: `URL 정보 수집 오류: ${errorMsg}`.substring(0, 255) }).eq('id', placePkId);
+      console.error(`[Firecrawl] API 호출/처리 중 심각한 오류:`, e);
       return NextResponse.json({ error: 'URL에서 정보를 가져오는 중 오류가 발생했습니다.', details: errorMsg }, { status: 500 });
     }
 
-    // 3. Supabase Edge Function 비동기 호출 (AI 분석 요청)
+    // 2. 크롤링 성공 후 DB에 레코드 생성
+    const now = new Date().toISOString();
+    const { data: initialPlaceRecord, error: initialInsertError } = await supabaseAdmin
+      .from('places')
+      .insert({
+        user_id: userId,
+        place_id: naverPlaceId,
+        place_url: standardizedUrlForFirecrawl,
+        status: 'processing',
+        created_at: now,
+        updated_at: now,
+        content_last_changed_at: now,
+        last_crawled_at: now,
+      })
+      .select('id')
+      .single();
+
+    if (initialInsertError || !initialPlaceRecord) {
+      console.error('초기 매장 정보 저장 오류:', initialInsertError?.message);
+      return NextResponse.json({ error: '매장 정보 저장 중 오류 발생', details: initialInsertError?.message }, { status: 500 });
+    }
+    
+    const placePkId = initialPlaceRecord.id;
+    
+    // 3. Edge Function 호출
     try {
       console.log(`[Edge Function] 매장 ${placePkId} AI 분석 처리 요청`);
       const { error: functionError } = await supabaseAdmin.functions.invoke(
@@ -261,14 +270,36 @@ export async function POST(request: Request) {
 
       if (functionError) {
         console.error(`[Edge Function] Invoke failed for 'process-ai-analysis', place_pk_id ${placePkId}:`, functionError);
-        await supabaseAdmin.from('places').update({ status: 'failed', error_message: `AI 분석 서비스 호출 실패: ${functionError.message}`.substring(0, 255) }).eq('id', placePkId);
-        return NextResponse.json({ error: '매장 정보 분석 시작 중 내부 오류가 발생했습니다.', details: functionError.message }, { status: 500 });
+        
+        // Edge Function 호출 실패 시 places 테이블에서 레코드 삭제
+        console.log(`[Cleanup] 매장 ${placePkId} AI 분석 실패로 레코드 삭제`);
+        const { error: deleteError } = await supabaseAdmin
+          .from('places')
+          .delete()
+          .eq('id', placePkId);
+          
+        if (deleteError) {
+          console.error(`[Cleanup Error] 매장 ${placePkId} 삭제 실패:`, deleteError);
+        }
+        
+        return NextResponse.json({ error: '매장 정보 분석 시작 중 내부 오류가 발생했습니다. 다시 시도해주세요.', details: functionError.message }, { status: 500 });
       }
 
     } catch (e: unknown) {
       const errorMsg = e instanceof Error ? e.message : '알 수 없는 오류';
       console.error(`[Edge Function] Critical error during invoke for 'process-ai-analysis', place_pk_id ${placePkId}:`, e);
-      await supabaseAdmin.from('places').update({ status: 'failed', error_message: `AI 분석 서비스 호출 중 예외 발생: ${errorMsg}`.substring(0, 255) }).eq('id', placePkId);
+      
+      // 예외 발생 시 places 테이블에서 레코드 삭제
+      console.log(`[Cleanup] 매장 ${placePkId} AI 분석 예외로 레코드 삭제`);
+      const { error: deleteError } = await supabaseAdmin
+        .from('places')
+        .delete()
+        .eq('id', placePkId);
+        
+      if (deleteError) {
+        console.error(`[Cleanup Error] 매장 ${placePkId} 삭제 실패:`, deleteError);
+      }
+      
       return NextResponse.json({ error: '매장 정보 분석 시작 중 예기치 않은 오류가 발생했습니다.', details: errorMsg }, { status: 500 });
     }
     
