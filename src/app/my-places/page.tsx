@@ -14,6 +14,17 @@ import {
 import PlaceCard from '@/components/PlaceCard';
 import AddPlaceButton from '@/components/AddPlaceButton';
 
+// 타입 정의 추가
+interface BasicInfo {
+  representative_images?: string[];
+  blog_review_count?: number;
+  visitor_review_count?: number;
+}
+
+interface CrawledData {
+  basic_info?: BasicInfo;
+}
+
 // 타입 정의
 interface PlaceData {
   id: string;
@@ -28,6 +39,7 @@ interface PlaceData {
   copies_count: number;
   blog_reviews_count?: number;
   visitor_reviews_count?: number;
+  crawled_data?: CrawledData; // CrawledData 타입으로 변경
 }
 
 interface ProfileData {
@@ -87,20 +99,20 @@ export default function MyPlacesPage() {
 
       // 매장 데이터 처리 - 이미지와 리뷰 정보 추출
       if (result.places && Array.isArray(result.places)) {
-        result.places = result.places.map((place: any) => {
+        result.places = result.places.map((place: PlaceData) => {
           // 대표 이미지 추출
-          const representativeImages = place.crawled_data?.basic_info?.representative_images;
-          if (representativeImages && representativeImages.length > 0) {
-            place.place_image_url = representativeImages[0];
-          }
+          if (place.crawled_data?.basic_info) {
+            const basicInfo = place.crawled_data.basic_info;
+            if (basicInfo.representative_images && basicInfo.representative_images.length > 0) {
+              place.place_image_url = basicInfo.representative_images[0];
+            }
 
-          // 리뷰 정보 추출
-          const basicInfo = place.crawled_data?.basic_info;
-          if (basicInfo) {
-            place.blog_reviews_count = basicInfo.blog_review_count || 0;
-            place.visitor_reviews_count = basicInfo.visitor_review_count || 0;
+            // 리뷰 정보 추출
+            if (basicInfo) { // basicInfo가 존재함을 이미 place.crawled_data?.basic_info 에서 확인했지만, 명시적으로 한 번 더 체크
+              place.blog_reviews_count = basicInfo.blog_review_count || 0;
+              place.visitor_reviews_count = basicInfo.visitor_review_count || 0;
+            }
           }
-
           return place;
         });
       }

@@ -12,6 +12,17 @@ import AILoadingState from '@/components/AILoadingState';
 import PlaceCard from '@/components/PlaceCard';
 import AddPlaceButton from '@/components/AddPlaceButton';
 
+// 타입 정의 추가
+interface BasicInfo {
+  representative_images?: string[];
+  blog_review_count?: number;
+  visitor_review_count?: number;
+}
+
+interface CrawledData {
+  basic_info?: BasicInfo;
+}
+
 interface PlaceData {
   id: string;
   place_id: string;
@@ -24,6 +35,7 @@ interface PlaceData {
   copies_count: number;
   blog_reviews_count?: number;
   visitor_reviews_count?: number;
+  crawled_data?: CrawledData; // CrawledData 타입으로 변경
 }
 
 interface MyPlacesData {
@@ -46,11 +58,11 @@ export default function Home() {
   const { showToast } = useToast();
 
   const [isProcessing, setIsProcessing] = useState(false);
-  const [generatedContent, setGeneratedContent] = useState<Record<string, string> | null>(null);
+  const [_generatedContent, setGeneratedContent] = useState<Record<string, string> | null>(null);
   const [placesData, setPlacesData] = useState<MyPlacesData | null>(null);
   const [isLoadingPlaces, setIsLoadingPlaces] = useState(false);
   const [showSearchForm, setShowSearchForm] = useState(false);
-  const [showLimitWarning, setShowLimitWarning] = useState(false);
+  const [_showLimitWarning, setShowLimitWarning] = useState(false);
 
   // 사용자 매장 정보 가져오기
   useEffect(() => {
@@ -185,13 +197,13 @@ export default function Home() {
 
   // 매장 데이터 처리 - 이미지와 리뷰 정보 추출
   if (placesData?.places && Array.isArray(placesData.places)) {
-    placesData.places = placesData.places.map((place: any) => {
+    placesData.places = placesData.places.map((place: PlaceData) => {
       // 이미지와 리뷰 데이터 설정
       if (place.crawled_data?.basic_info) {
         const basicInfo = place.crawled_data.basic_info;
 
         // 대표 이미지 추출
-        if (basicInfo.representative_images?.length > 0) {
+        if (basicInfo.representative_images && basicInfo.representative_images.length > 0) {
           place.place_image_url = basicInfo.representative_images[0];
         }
 

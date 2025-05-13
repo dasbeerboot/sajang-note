@@ -23,14 +23,20 @@ const eslintConfig = [
     ],
   },
   {
+    files: ["**/*.d.ts"],
+    rules: {
+      "@typescript-eslint/no-unused-vars": "off",
+      "no-unused-vars": "off",
+    },
+  },
+  {
     files: ["**/*.{js,jsx,ts,tsx}"],
     rules: {
       // Next.js 15 권장 룰
       "react/react-in-jsx-scope": "off", // React 자동 import 필요 없음
       "react/prop-types": "off", // TypeScript 사용 시 불필요
       "react/jsx-filename-extension": ["warn", { "extensions": [".jsx", ".tsx"] }],
-      "@typescript-eslint/no-unused-vars": ["error", { "argsIgnorePattern": "^_" }],
-      "no-unused-vars": ["error", { "argsIgnorePattern": "^_" }],
+      "@typescript-eslint/no-unused-vars": ["error", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_", "ignoreRestSiblings": true }],
       "import/no-anonymous-default-export": "warn",
       "no-console": ["warn", { "allow": ["warn", "error", "info"] }],
       "jsx-a11y/alt-text": "warn",
