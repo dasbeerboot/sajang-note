@@ -5,13 +5,17 @@ import { revalidatePath } from 'next/cache';
 
 export const dynamic = 'force-dynamic'; // 라우트를 동적으로 처리하도록 명시
 
+type Params = Promise<{ placeId: string }>;
+
 // 매장 상세 정보 조회 API
 export async function GET(
   req: NextRequest,
-  { params }: { params: { placeId: string } } // 인라인 타입 정의 및 구조 분해
+  { params }: { params: Params } // 선언한 타입 사용
 ) {
   try {
-    const placeId = params.placeId; // params에서 placeId 직접 사용
+    const { placeId } = await params
+    // 또는 const { placeId } = await params; 와 같이 바로 구조 분해 할당도 가능
+    
     const cookieStore = await cookies();
     
     const supabase = createServerClient(
@@ -91,10 +95,10 @@ export async function GET(
 
 export async function DELETE(
   req: Request,
-  context: { params: { placeId: string } } // 타입을 직접 명시
+  { params }: { params: Params } // 선언한 타입 사용
 ) {
   try {
-    const placeId = context.params.placeId; // context에서 placeId 추출
+    const { placeId } = await params
     const cookieStore = await cookies();
     
     const supabase = createServerClient(
