@@ -36,8 +36,13 @@ const eslintConfig = [
       "react/react-in-jsx-scope": "off", // React 자동 import 필요 없음
       "react/prop-types": "off", // TypeScript 사용 시 불필요
       "react/jsx-filename-extension": ["warn", { "extensions": [".jsx", ".tsx"] }],
-      "@typescript-eslint/no-unused-vars": ["error", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_", "ignoreRestSiblings": true }],
-      "@typescript-eslint/no-empty-object-type": ["error", { "allowObjectTypes": true }],
+      "@typescript-eslint/no-unused-vars": ["error", { 
+        "argsIgnorePattern": "^_|_$", 
+        "varsIgnorePattern": "^_|_$",
+        "caughtErrorsIgnorePattern": "^_",
+        "ignoreRestSiblings": true 
+      }],
+      "@typescript-eslint/no-empty-object-type": ["error", { "allowObjectTypes": "always" }],
       "import/no-anonymous-default-export": "warn",
       "no-console": ["warn", { "allow": ["warn", "error", "info"] }],
       "jsx-a11y/alt-text": "warn",

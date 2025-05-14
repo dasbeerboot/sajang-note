@@ -104,7 +104,7 @@ export default function PlaceDetailClient({
   const [showNewCopyModal, setShowNewCopyModal] = useState(false);
 
   // 크레딧 상태 관리 - 로컬 상태만 유지
-  const [localCredits, setLocalCredits] = useState<number>(0);
+  const [_localCredits, setLocalCredits] = useState<number>(0);
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -283,10 +283,10 @@ export default function PlaceDetailClient({
   };
 
   // 카피 생성 처리
-  const handleGenerateCopy = async () => {
+  const handleGenerateCopy = async (userPrompt: string, referenceLinks?: string[]) => {
     setIsGeneratingCopy(true);
     setGeneratedCopy(null);
-    
+
     try {
       // 무료 체험 횟수 확인 및 구독 상태 확인
       const { data: profileData, error: profileError } = await supabase
@@ -327,11 +327,62 @@ export default function PlaceDetailClient({
         return;
       }
 
+      // 참고 링크가 있는 경우 크롤링 처리
+      let formattedReferenceContent = '';
+      if (referenceLinks && referenceLinks.length > 0) {
+        try {
+          showToast('참고 링크를 크롤링하는 중입니다.', 'info');
+          const response = await fetch('/api/crawl-references', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ urls: referenceLinks }),
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ error: '알 수 없는 오류' }));
+            throw new Error(
+              `크롤링 요청 실패: ${response.status} - ${errorData.error || response.statusText}`
+            );
+          }
+
+          const crawlData = await response.json();
+
+          if (crawlData.success) {
+            formattedReferenceContent = crawlData.formattedContent || '';
+
+            // 성공적으로 크롤링한 링크에 대해 알림
+            if (crawlData.totalSuccessful > 0) {
+              showToast(
+                `${crawlData.totalSuccessful}개의 참고 링크를 성공적으로 크롤링했습니다.`,
+                'success'
+              );
+            }
+
+            // 실패한 링크가 있는 경우 알림
+            const failCount = crawlData.totalAttempted - crawlData.totalSuccessful;
+            if (failCount > 0) {
+              showToast(`${failCount}개의 참고 링크를 크롤링하는데 실패했습니다.`, 'warning');
+            }
+          } else {
+            throw new Error(crawlData.error || '크롤링 요청 실패');
+          }
+        } catch (error) {
+          console.error('참고 링크 크롤링 오류:', error);
+          showToast(
+            `참고 링크를 크롤링하는 중 오류가 발생했습니다: ${error instanceof Error ? error.message : '알 수 없는 오류'}`,
+            'error'
+          );
+        }
+      }
+
       const { data, error } = await supabase.functions.invoke('generate-ai-copy', {
         body: {
           placeId: placeData?.id,
           copyType: activeMenuId,
-          userPrompt: null,
+          userPrompt,
+          referenceContent: formattedReferenceContent,
         },
       });
 
@@ -339,7 +390,12 @@ export default function PlaceDetailClient({
         let specificErrorHandled = false;
         if (typeof error === 'object' && error !== null && 'context' in error) {
           const errContext = (error as Record<string, unknown>).context;
-          if (errContext && typeof errContext === 'object' && 'status' in errContext && typeof errContext.status === 'number') {
+          if (
+            errContext &&
+            typeof errContext === 'object' &&
+            'status' in errContext &&
+            typeof errContext.status === 'number'
+          ) {
             const status = errContext.status;
             const message = (error as { message?: string }).message || '알 수 없는 오류 메시지';
             if (status === 500 || status === 503) {
@@ -355,7 +411,11 @@ export default function PlaceDetailClient({
           }
         }
         if (!specificErrorHandled) {
-          showToast('카피 생성 중 오류가 발생했습니다: ' + ((error as { message?: string }).message || '알 수 없는 오류'), 'error');
+          showToast(
+            '카피 생성 중 오류가 발생했습니다: ' +
+              ((error as { message?: string }).message || '알 수 없는 오류'),
+            'error'
+          );
         }
         setGeneratedCopy('오류: ' + ((error as { message?: string }).message || '알 수 없는 오류'));
       } else if (data && typeof data.generatedCopy === 'string') {
@@ -368,27 +428,27 @@ export default function PlaceDetailClient({
           if (!savedMenuIds.includes(activeMenuId)) {
             setSavedMenuIds(prev => [...prev, activeMenuId]);
           }
-          
+
           // 로컬 스토리지에도 저장
           localStorage.setItem(`copy_${placeData.id}_${activeMenuId}`, generatedContent);
         } else if (placeData && activeMenuId) {
           // Edge Function에서 저장하지 못한 경우 클라이언트에서 저장 시도
-          await saveCopy(placeData.id, activeMenuId, "", generatedContent);
+          await saveCopy(placeData.id, activeMenuId, userPrompt, generatedContent);
         }
 
         // 크레딧 정보 업데이트 (Edge Function에서 남은 크레딧 정보를 받은 경우)
         if (data.remainingCredits !== undefined) {
           // 로컬 상태 즉시 업데이트
           setLocalCredits(data.remainingCredits);
-          
-          // AuthContext profile도 업데이트 시도 
+
+          // AuthContext profile도 업데이트 시도
           if (profile && setProfile) {
             setProfile({
               ...profile,
-              credits: data.remainingCredits
+              credits: data.remainingCredits,
             });
           }
-          
+
           showToast(`남은 크레딧: ${data.remainingCredits}`, 'info');
         }
         // 무료 체험 사용자인 경우
@@ -404,14 +464,20 @@ export default function PlaceDetailClient({
       let toastType: 'error' | 'warning' = 'error';
       if (typeof err === 'object' && err !== null && 'context' in err) {
         const errContext = (err as Record<string, unknown>).context;
-        if (errContext && typeof errContext === 'object' && 'status' in errContext && typeof errContext.status === 'number') {
+        if (
+          errContext &&
+          typeof errContext === 'object' &&
+          'status' in errContext &&
+          typeof errContext.status === 'number'
+        ) {
           const status = errContext.status;
           const message = (err as { message?: string }).message || '알 수 없는 오류 메시지';
           if (status === 500 || status === 503) {
-            errorMsg = 'AI 동시 요청이 너무 많아 서비스가 지연되고 있습니다. 잠시 후 다시 시도해주세요.';
+            errorMsg =
+              'AI 동시 요청이 너무 많아 서비스가 지연되고 있습니다. 잠시 후 다시 시도해주세요.';
             toastType = 'warning';
           } else {
-             errorMsg = `카피 생성 중 예외가 발생했습니다 (코드: ${status}): ${message}`;
+            errorMsg = `카피 생성 중 예외가 발생했습니다 (코드: ${status}): ${message}`;
           }
         } else if (err instanceof Error) {
           errorMsg = `카피 생성 중 예외가 발생했습니다: ${err.message}`;
@@ -445,13 +511,10 @@ export default function PlaceDetailClient({
       generated_content: content,
       updated_at: new Date().toISOString(),
     };
-    
-    const { error } = await supabase.from('ai_generated_copies').upsert(
-      payload,
-      {
-        onConflict: 'place_id,copy_type',
-      }
-    );
+
+    const { error } = await supabase.from('ai_generated_copies').upsert(payload, {
+      onConflict: 'place_id,copy_type',
+    });
 
     if (error) {
       showToast('생성된 카피를 DB에 저장하는 중 오류가 발생했습니다.', 'error');

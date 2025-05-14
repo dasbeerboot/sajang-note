@@ -1,12 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
-import { Database } from '@/types/supabase';
-
-type RouteParams = Promise<{}>;
 
 export async function POST(req: NextRequest) {
-  const supabase = createRouteHandlerClient<Database>({ cookies });
+  const supabase = createRouteHandlerClient({ cookies });
 
   // 세션 확인하여 사용자 인증
   const {

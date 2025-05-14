@@ -336,8 +336,8 @@ export default function CheckoutPage() {
                 <ul className="space-y-3">
                   {plan.features &&
                     plan.features.map((feature, index) => (
-                      <li 
-                        key={index} 
+                      <li
+                        key={index}
                         className={`flex items-center ${
                           index === plan.features.length - 1 ? 'justify-between' : ''
                         }`}
@@ -350,16 +350,16 @@ export default function CheckoutPage() {
                           />
                           <span className="text-sm">{feature}</span>
                         </div>
-                        
+
                         {index === plan.features.length - 1 && feature.includes('크레딧') && (
-                          <button 
+                          <button
                             className="btn btn-ghost btn-xs p-1"
-                            onClick={(e) => {
+                            onClick={e => {
                               e.stopPropagation();
                               const rect = e.currentTarget.getBoundingClientRect();
                               setTooltipPosition({
                                 x: rect.left + window.scrollX,
-                                y: rect.top + window.scrollY
+                                y: rect.top + window.scrollY,
                               });
                               setCreditInfoOpen(true);
                             }}

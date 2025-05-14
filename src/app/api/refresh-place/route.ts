@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { crawlWithFirecrawl } from '@/lib/apis/crawl-utils';
 
 // 서비스 롤 키를 사용하는 Supabase 클라이언트 생성
 function createServiceClient() {
@@ -151,35 +152,20 @@ export async function POST(request: Request) {
       const standardizedUrlForFirecrawl = `https://m.place.naver.com/restaurant/${naverPlaceId}/home`;
 
       console.log(`[Firecrawl] 매장 정보 새로고침 시작: ${standardizedUrlForFirecrawl}`);
-      const firecrawlApiUrl = 'https://api.firecrawl.dev/v1/scrape';
-      const payload = {
-        url: standardizedUrlForFirecrawl,
-        formats: ['markdown'],
-        onlyMainContent: false,
-        excludeTags: ['nav', 'footer', 'script', 'style', 'iframe', 'noscript'],
-        waitFor: 3000, // 필요시 활성화 (페이지 로드 대기 시간)
-        timeout: 55000,
-      };
 
-      const response = await fetch(firecrawlApiUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${firecrawlApiKey}`,
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        const errorBody = await response.text();
-        console.error(`[Firecrawl] API Error (${response.status}): ${errorBody}`);
+      let firecrawlData;
+      try {
+        firecrawlData = await crawlWithFirecrawl(standardizedUrlForFirecrawl);
+        console.log(`[Firecrawl] 매장 정보 수집 완료`);
+      } catch (error) {
+        console.error(`[Firecrawl] 크롤링 실패:`, error);
 
         // 실패 시 상태 업데이트
         await serviceClient
           .from('places')
           .update({
             status: 'completed',
-            error_message: `Firecrawl API 요청 실패 (${response.status}): ${errorBody || response.statusText}`,
+            error_message: error instanceof Error ? error.message : '크롤링 중 오류 발생',
           })
           .eq('id', placeId);
 
@@ -191,36 +177,6 @@ export async function POST(request: Request) {
           { status: 500 }
         );
       }
-
-      const result = await response.json();
-
-      if (!result.success || !result.data || !result.data.markdown || !result.data.metadata) {
-        console.error(`[Firecrawl] API 응답 성공했으나 데이터 누락`);
-
-        // 실패 시 상태 업데이트
-        await serviceClient
-          .from('places')
-          .update({
-            status: 'completed',
-            error_message:
-              'Firecrawl API에서 유효한 마크다운 또는 메타데이터를 가져오지 못했습니다.',
-          })
-          .eq('id', placeId);
-
-        return NextResponse.json(
-          {
-            success: false,
-            message: 'Firecrawl API에서 유효한 마크다운 또는 메타데이터를 가져오지 못했습니다.',
-          },
-          { status: 500 }
-        );
-      }
-
-      const firecrawlData = {
-        markdown: result.data.markdown,
-        metadata: result.data.metadata,
-      };
-      console.log(`[Firecrawl] 매장 정보 수집 완료`);
 
       // 매장 상태 업데이트 (crawled_data는 Edge Function에서 업데이트)
       const { error: updateDataError } = await serviceClient

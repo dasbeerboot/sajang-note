@@ -15,7 +15,7 @@ export type Database = {
           free_trial_copy_remaining: number;
           credits: number;
           last_credits_refresh: string | null;
-          [key: string]: any;
+          [key: string]: unknown;
         };
         Insert: {
           id?: string;
@@ -30,7 +30,7 @@ export type Database = {
           free_trial_copy_remaining?: number;
           credits?: number;
           last_credits_refresh?: string | null;
-          [key: string]: any;
+          [key: string]: unknown;
         };
         Update: {
           id?: string;
@@ -45,7 +45,7 @@ export type Database = {
           free_trial_copy_remaining?: number;
           credits?: number;
           last_credits_refresh?: string | null;
-          [key: string]: any;
+          [key: string]: unknown;
         };
       };
       // 다른 테이블 타입도 필요에 따라 추가할 수 있습니다

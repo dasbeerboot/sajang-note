@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-type RouteParams = Promise<{}>;
-
 export async function POST(req: NextRequest) {
   // 요청이 인증된 cron 서비스에서 온 것인지 확인
   const authHeader = req.headers.get('Authorization');

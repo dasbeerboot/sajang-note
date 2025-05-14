@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createServerClient } from '@supabase/ssr'; // @supabase/ssr 사용
 import { createClient as createAdminClient } from '@supabase/supabase-js';
+import { crawlWithFirecrawl } from '@/lib/apis/crawl-utils';
 
 export const dynamic = 'force-dynamic'; // 라우트를 동적으로 처리하도록 명시
 
@@ -229,44 +230,7 @@ export async function POST(request: Request) {
 
     try {
       console.log(`[Firecrawl] 매장 정보 수집 시작: ${standardizedUrlForFirecrawl}`);
-      const firecrawlApiUrl = 'https://api.firecrawl.dev/v1/scrape';
-      const payload = {
-        url: standardizedUrlForFirecrawl,
-        formats: ['markdown'],
-        onlyMainContent: false,
-        excludeTags: ['nav', 'footer', 'script', 'style', 'iframe', 'noscript'],
-        waitFor: 3000, // 필요시 활성화 (페이지 로드 대기 시간)
-        timeout: 55000,
-      };
-
-      const response = await fetch(firecrawlApiUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${firecrawlApiKey}`,
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        const errorBody = await response.text();
-        console.error(`[Firecrawl] API Error (${response.status}): ${errorBody}`);
-        throw new Error(
-          `Firecrawl API 요청 실패 (${response.status}): ${errorBody || response.statusText}`
-        );
-      }
-
-      const result = await response.json();
-
-      if (!result.success || !result.data || !result.data.markdown || !result.data.metadata) {
-        console.error(`[Firecrawl] API 응답 성공했으나 데이터 누락`);
-        throw new Error('Firecrawl API에서 유효한 마크다운 또는 메타데이터를 가져오지 못했습니다.');
-      }
-
-      firecrawlData = {
-        markdown: result.data.markdown,
-        metadata: result.data.metadata,
-      };
+      firecrawlData = await crawlWithFirecrawl(standardizedUrlForFirecrawl);
       console.log(`[Firecrawl] 매장 정보 수집 완료`);
     } catch (e: unknown) {
       const errorMsg = e instanceof Error ? e.message : '알 수 없는 오류';

@@ -30,28 +30,28 @@ export default function UserCredits({ className = '', onCreditsChange }: UserCre
       if (!profile?.id) {
         return;
       }
-      
+
       // DB에서 크레딧 직접 조회
       const { data, error } = await supabase
         .from('profiles')
         .select('credits')
         .eq('id', profile.id)
         .single();
-      
+
       if (error) {
         return;
       }
-      
+
       if (data) {
         const credits = data.credits || 0;
         setLocalCredits(credits);
-        
+
         // 부모 컴포넌트에 크레딧 변경 알림 (필요한 경우)
         if (onCreditsChange) {
           onCreditsChange(credits);
         }
       }
-    } catch (err) {
+    } catch (_err) {
       // 에러 발생 시 조용히 처리
     }
   }, [profile?.id, onCreditsChange]);
@@ -60,14 +60,14 @@ export default function UserCredits({ className = '', onCreditsChange }: UserCre
   useEffect(() => {
     if (profile?.credits !== undefined && profile.credits !== null) {
       setLocalCredits(profile.credits);
-      
+
       if (onCreditsChange) {
         onCreditsChange(profile.credits);
       }
     } else if (profile?.id) {
       fetchAndUpdateCredits();
     }
-  }, [profile, fetchAndUpdateCredits]);
+  }, [profile, fetchAndUpdateCredits, onCreditsChange]);
 
   // 컴포넌트 마운트 시 크레딧 조회
   useEffect(() => {
@@ -85,7 +85,7 @@ export default function UserCredits({ className = '', onCreditsChange }: UserCre
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    
+
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
@@ -96,7 +96,7 @@ export default function UserCredits({ className = '', onCreditsChange }: UserCre
     const rect = e.currentTarget.getBoundingClientRect();
     setTooltipPosition({
       x: rect.left + window.scrollX,
-      y: rect.top + window.scrollY
+      y: rect.top + window.scrollY,
     });
     setCreditInfoOpen(!creditInfoOpen);
   };

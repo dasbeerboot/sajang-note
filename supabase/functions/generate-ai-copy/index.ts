@@ -91,6 +91,7 @@ interface RequestPayload {
   placeId: string;
   copyType: string;
   userPrompt?: string;
+  referenceContent?: string; // 참고 링크에서 크롤링한 내용 (포맷팅된 문자열)
 }
 
 // JWT 토큰에서 사용자 ID 추출 함수
@@ -364,10 +365,10 @@ Deno.serve(async (req: Request) => {
     }
 
     const requestPayload: RequestPayload = await req.json();
-    const { placeId, copyType, userPrompt } = requestPayload;
+    const { placeId, copyType, userPrompt, referenceContent } = requestPayload;
 
     console.log(
-      `[요청 데이터] userId: ${userId}, placeId: ${placeId}, copyType: ${copyType}, userPrompt 존재: ${Boolean(userPrompt)}`
+      `[요청 데이터] userId: ${userId}, placeId: ${placeId}, copyType: ${copyType}, userPrompt 존재: ${Boolean(userPrompt)}, referenceContent 존재: ${Boolean(referenceContent)}`
     );
 
     if (!placeId || !copyType) {
@@ -498,29 +499,39 @@ Deno.serve(async (req: Request) => {
     );
 
     // 3. 프롬프트 구성
-    let fullPrompt = promptData.prompt_content;
+    let promptTemplate = promptData.prompt_content;
+
+    // 사용자 프롬프트 처리
+    if (userPrompt) {
+      promptTemplate += `\n\n### 추가 요청사항:\n${userPrompt}`;
+    }
+
+    // 참고 링크 내용을 프롬프트에 추가
+    if (referenceContent && referenceContent.trim()) {
+      console.log(`[프롬프트 구성] 참고 링크 내용 추가 (${referenceContent.length} 글자)`);
+      promptTemplate += `\n\n${referenceContent}`;
+    }
+
+    // 매장 정보 변수
+    let placeName = placeData.place_name || '';
+    let placeAddress = placeData.place_address || '';
 
     // crawled_data 추가
-    fullPrompt += '\n\n---\n제공된 데이터:\n';
-    fullPrompt += `업체명: ${placeData.place_name || ''}\n`;
-    fullPrompt += `위치: ${placeData.place_address || ''}\n`;
+    promptTemplate += '\n\n---\n제공된 데이터:\n';
+    promptTemplate += `업체명: ${placeName}\n`;
+    promptTemplate += `위치: ${placeAddress}\n`;
 
     // crawled_data가 있으면 문자열로 추가
     if (placeData.crawled_data) {
-      fullPrompt += `크롤링 데이터: ${JSON.stringify(placeData.crawled_data, null, 2)}\n`;
+      promptTemplate += `크롤링 데이터: ${JSON.stringify(placeData.crawled_data, null, 2)}\n`;
     }
 
-    // 사용자 요청사항 추가
-    if (userPrompt && userPrompt.trim()) {
-      fullPrompt += `\n사용자 요청사항: ${userPrompt}\n`;
-    }
-
-    console.log(`[프롬프트 준비 완료] 최종 프롬프트 길이: ${fullPrompt.length} 글자`);
+    console.log(`[프롬프트 준비 완료] 최종 프롬프트 길이: ${promptTemplate.length} 글자`);
 
     // 4. Gemini API 직접 호출
     try {
       console.log(`[Gemini API 호출] 시작`);
-      const generatedText = await generateWithGemini(fullPrompt);
+      const generatedText = await generateWithGemini(promptTemplate);
       console.log(`[Gemini API 호출] 성공, 응답 길이: ${generatedText.length} 글자`);
 
       const requestEnd = new Date();

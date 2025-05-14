@@ -71,7 +71,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             .single();
 
           if (error && error.code !== 'PGRST116') {
-            console.error('[AuthContext] 프로필 정보 조회 중 오류:', error);
             setIsProfileComplete(false);
             setSubscriptionStatus(null);
           } else if (profile) {
@@ -82,12 +81,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
             // 프로필 전체 정보 설정 (크레딧 정보 포함)
             setProfile(profile);
-
-            console.log('[AuthContext] 프로필 정보 로드 완료:', {
-              id: profile.id,
-              credits: profile.credits || 0,
-              last_credits_refresh: profile.last_credits_refresh,
-            });
 
             // 카카오 로그인 사용자이고, provider_token이 있으며, 프로필 정보가 부족할 경우 카카오 API 호출
             if (
@@ -151,10 +144,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     .update(profileDataToUpdate)
                     .eq('id', currentSession.user.id);
                   if (updateError) {
-                    console.error(
-                      '[AuthContext] Error updating profile with Kakao data:',
-                      updateError
-                    );
+                    // 에러 무시하고 진행
                   } else {
                     // 프로필 업데이트 후 전체 프로필 데이터 다시 조회
                     const { data: updatedProfile, error: fetchError } = await supabase
@@ -165,30 +155,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
                     if (!fetchError && updatedProfile) {
                       setProfile(updatedProfile);
-                      console.log('[AuthContext] 카카오 정보로 업데이트된 프로필 정보 로드 완료:', {
-                        id: updatedProfile.id,
-                        credits: updatedProfile.credits || 0,
-                        last_credits_refresh: updatedProfile.last_credits_refresh,
-                      });
                     }
                   }
                 }
               } catch (kakaoApiError: unknown) {
-                let errorMessage = 'Unknown error';
+                let _errorMessage = 'Unknown error';
                 if (axios.isAxiosError(kakaoApiError) && kakaoApiError.response?.data) {
-                  errorMessage = JSON.stringify(kakaoApiError.response.data);
+                  _errorMessage = JSON.stringify(kakaoApiError.response.data);
                 } else if (kakaoApiError instanceof Error) {
-                  errorMessage = kakaoApiError.message;
+                  _errorMessage = kakaoApiError.message;
                 }
-                console.error(
-                  '[AuthContext] Error fetching Kakao user info from API:',
-                  errorMessage
-                );
+                // 에러는 무시하고 진행
               }
             }
           }
-        } catch (profileError) {
-          console.error('[AuthContext] Outer error fetching profile:', profileError);
+        } catch (_profileError) {
           setIsProfileComplete(false);
           setSubscriptionStatus(null); // 오류 시 초기화
         }
@@ -222,7 +203,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       // 현재 세션이 있는지 먼저 확인 (더 확실하게는 await supabase.auth.getSession() 사용)
       if (!session) {
-        console.warn('[AuthContext] 이미 로그아웃된 상태이거나 세션이 없습니다.');
         setUser(null);
         // setSession(null); // session 상태는 onAuthStateChange 리스너에 의해 업데이트 될 것임
         setIsProfileComplete(false);
@@ -231,14 +211,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      const { error } = await supabase.auth.signOut();
+      const { error: _error } = await supabase.auth.signOut();
 
-      if (error) {
-        if (error.name === 'AuthSessionMissingError') {
-          console.warn('[AuthContext] 로그아웃 시 서버에 이미 세션이 없었습니다:', error.message);
+      if (_error) {
+        if (_error.name === 'AuthSessionMissingError') {
           // 이 경우, 이미 서버 세션은 없으므로 클라이언트 상태만 정리
         } else {
-          throw error; // 다른 종류의 에러는 그대로 throw
+          throw _error; // 다른 종류의 에러는 그대로 throw
         }
       }
 
@@ -252,8 +231,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSubscriptionStatus(null); // 로그아웃 시 구독 상태 초기화
       showToast('로그아웃 되었습니다.', 'success');
       if (router && typeof router.push === 'function') router.push('/');
-    } catch (error: unknown) {
-      console.error('로그아웃 오류:', error);
+    } catch (_error: unknown) {
       showToast('로그아웃 중 오류가 발생했습니다.', 'error');
 
       setUser(null);

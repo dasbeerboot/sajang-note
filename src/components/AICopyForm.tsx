@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Chat, Lightning, Note } from '@phosphor-icons/react';
+import { Chat, Lightning, Note, LinkSimple, Plus, X } from '@phosphor-icons/react';
 
 interface CopyMenuItem {
   id: string;
@@ -9,7 +9,7 @@ interface CopyMenuItem {
 }
 
 interface AICopyFormProps {
-  onSubmit: (userPrompt: string) => void;
+  onSubmit: (userPrompt: string, referenceLinks?: string[]) => void;
   isGenerating: boolean;
   copyType: string;
   items: CopyMenuItem[];
@@ -25,6 +25,11 @@ export default function AICopyForm({ onSubmit, isGenerating, copyType, items }: 
   const [keywordError, setKeywordError] = useState(false);
   const [wordCountError, setWordCountError] = useState(false);
   const [wordCountExceededError, setWordCountExceededError] = useState(false);
+  
+  // 참고 링크 관련 상태 추가
+  const [referenceLinks, setReferenceLinks] = useState<string[]>(['']);
+  const [linkErrors, setLinkErrors] = useState<boolean[]>([false]);
+  const [isLoadingLinks, setIsLoadingLinks] = useState<boolean[]>([false]);
 
   // copyType이 변경될 때 상태 초기화
   useEffect(() => {
@@ -37,6 +42,9 @@ export default function AICopyForm({ onSubmit, isGenerating, copyType, items }: 
     setKeywordError(false);
     setWordCountError(false);
     setWordCountExceededError(false);
+    setReferenceLinks(['']);
+    setLinkErrors([false]);
+    setIsLoadingLinks([false]);
 
     // 블로그 리뷰 포스팅이면 입력 폼 표시, 아니면 초기 선택 화면으로
     if (copyType === 'blog_review_post') {
@@ -68,16 +76,39 @@ export default function AICopyForm({ onSubmit, isGenerating, copyType, items }: 
         hasError = true;
       }
 
+      // 링크 유효성 검사
+      const newLinkErrors = referenceLinks.map(link => {
+        // 비어있으면 에러 아님 (선택적 필드)
+        if (!link.trim()) return false;
+        
+        try {
+          new URL(link);
+          return false; // 유효한 URL
+        } catch (_error) {
+          return true; // 유효하지 않은 URL
+        }
+      });
+      
+      if (newLinkErrors.some(error => error)) {
+        setLinkErrors(newLinkErrors);
+        hasError = true;
+      }
+
       if (hasError) {
         return;
       }
 
+      // 에러 상태 초기화
       setKeywordError(false);
       setWordCountError(false);
       setWordCountExceededError(false);
+      setLinkErrors(referenceLinks.map(() => false));
+
+      // 빈 문자열 링크 필터링
+      const filteredLinks = referenceLinks.filter(link => link.trim() !== '');
 
       const formattedPrompt = `컨셉: ${concept}\n키워드: ${keyword}\n글자 수: ${wordCount}자\n요청사항 기타: ${extraRequest}`;
-      onSubmit(formattedPrompt);
+      onSubmit(formattedPrompt, filteredLinks);
     } else {
       onSubmit(userPrompt);
     }
@@ -117,6 +148,45 @@ export default function AICopyForm({ onSubmit, isGenerating, copyType, items }: 
     if (e.target.value.trim()) {
       setKeywordError(false);
     }
+  };
+
+  // 참고 링크 관련 함수
+  const handleLinkChange = (index: number, value: string) => {
+    const newLinks = [...referenceLinks];
+    newLinks[index] = value;
+    setReferenceLinks(newLinks);
+    
+    // 링크 유효성 검사
+    const newLinkErrors = [...linkErrors];
+    if (value.trim() === '') {
+      newLinkErrors[index] = false; // 빈 값은 에러가 아님
+    } else {
+      try {
+        new URL(value);
+        newLinkErrors[index] = false;
+      } catch (_error) {
+        newLinkErrors[index] = true;
+      }
+    }
+    setLinkErrors(newLinkErrors);
+  };
+
+  const addReferenceLink = () => {
+    if (referenceLinks.length < 3) {
+      setReferenceLinks([...referenceLinks, '']);
+      setLinkErrors([...linkErrors, false]);
+      setIsLoadingLinks([...isLoadingLinks, false]);
+    }
+  };
+
+  const removeReferenceLink = (index: number) => {
+    const newLinks = referenceLinks.filter((_, i) => i !== index);
+    const newErrors = linkErrors.filter((_, i) => i !== index);
+    const newLoading = isLoadingLinks.filter((_, i) => i !== index);
+    
+    setReferenceLinks(newLinks);
+    setLinkErrors(newErrors);
+    setIsLoadingLinks(newLoading);
   };
 
   return (
@@ -213,6 +283,60 @@ export default function AICopyForm({ onSubmit, isGenerating, copyType, items }: 
                       글자 수는 최대 3000자까지 입력 가능합니다.
                     </div>
                   )}
+                </div>
+
+                {/* 참고 링크 필드 추가 */}
+                <div className="form-control">
+                  <label className="label">
+                    <span className="label-text flex items-center">
+                      <LinkSimple size={16} className="mr-1" />
+                      참고 링크 (최대 3개)
+                    </span>
+                    {referenceLinks.length < 3 && (
+                      <button
+                        type="button"
+                        onClick={addReferenceLink}
+                        disabled={isGenerating}
+                        className="btn btn-xs btn-ghost"
+                      >
+                        <Plus size={14} />
+                        추가
+                      </button>
+                    )}
+                  </label>
+                  <div className="space-y-2">
+                    {referenceLinks.map((link, index) => (
+                      <div key={index} className="flex gap-2 items-center">
+                        <input
+                          type="url"
+                          value={link}
+                          onChange={(e) => handleLinkChange(index, e.target.value)}
+                          className={`input input-bordered w-full focus:input-primary text-sm ${linkErrors[index] ? 'input-error' : ''}`}
+                          placeholder="https://blog.naver.com/sajangnote/1234567890"
+                          disabled={isGenerating || isLoadingLinks[index]}
+                        />
+                        {referenceLinks.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => removeReferenceLink(index)}
+                            disabled={isGenerating}
+                            className="btn btn-ghost btn-square btn-sm"
+                          >
+                            <X size={16} />
+                          </button>
+                        )}
+                        {isLoadingLinks[index] && (
+                          <span className="loading loading-spinner loading-xs text-primary"></span>
+                        )}
+                      </div>
+                    ))}
+                    {referenceLinks.some((_, i) => linkErrors[i]) && (
+                      <div className="text-error text-xs">유효한 URL을 입력해주세요.</div>
+                    )}
+                    <div className="text-xs text-gray-500 mt-1">
+                      참고: URL을 입력하면 해당 페이지의 내용을 크롤링하여 AI 생성에 참고합니다.
+                    </div>
+                  </div>
                 </div>
 
                 <div className="form-control">
