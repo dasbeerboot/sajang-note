@@ -57,6 +57,12 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  
+  // 사이트맵 자동 생성 설정
+  experimental: {
+    // 이 설정은 Next.js 13+ 버전에서 필요하지 않습니다.
+    // App Router에서는 src/app/sitemap.ts 파일이 자동으로 /sitemap.xml로 인식됩니다.
+  },
 };
 
 export default nextConfig;
