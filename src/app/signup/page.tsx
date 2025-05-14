@@ -412,7 +412,7 @@ export default function SignupPage() {
         {step === 3 && (
           <div className="text-center space-y-4 py-4">
             <CheckCircle size={48} weight="fill" className="text-success mx-auto" />
-            <h3 className="font-semibold text-lg">회원가입 요청 완료!</h3>
+            <h3 className="font-semibold text-lg">받은 메일함을 확인해주세요!</h3>
             <p className="text-sm">
               입력하신 이메일 주소 <span className="font-medium text-primary">{email}</span>로<br />
               계정 활성화 링크를 보냈습니다.
