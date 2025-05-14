@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import analytics, { Events } from '@/lib/analytics';
@@ -16,10 +16,37 @@ export default function ClientAnalyticsProvider({
 }) {
   const pathname = usePathname();
   const { user, profile } = useAuth();
+  const [isAnalyticsReady, setIsAnalyticsReady] = useState(false);
+  
+  // 중복 호출 방지를 위한 Ref
+  const userIdentified = useRef<boolean>(false);
+  const lastPathTracked = useRef<string | null>(null);
 
-  // 사용자 식별 정보 설정
+  // 초기화 상태 확인
   useEffect(() => {
-    if (user?.id && profile) {
+    // process.env.NODE_ENV가 production인지 확인
+    const isProd = process.env.NODE_ENV === 'production';
+    // 토큰이 설정되어 있는지 확인
+    const hasToken = !!process.env.NEXT_PUBLIC_MIXPANEL_TOKEN;
+    
+    if (isProd) {
+      if (hasToken) {
+        setIsAnalyticsReady(true);
+        console.info('[ClientAnalyticsProvider] Analytics ready');
+      } else {
+        console.warn('[ClientAnalyticsProvider] Mixpanel token not found in production environment');
+      }
+    } else {
+      console.info('[ClientAnalyticsProvider] Development mode - analytics events will be logged to console only');
+      setIsAnalyticsReady(true);
+    }
+  }, []);
+
+  // 사용자 식별 정보 설정 - 세션당 한 번만 실행
+  useEffect(() => {
+    if (!isAnalyticsReady || !user?.id || !profile || userIdentified.current) return;
+    
+    try {
       // 사용자 ID 설정
       analytics.identify(user.id);
       
@@ -32,20 +59,40 @@ export default function ClientAnalyticsProvider({
         phone: profile.phone,
         credits: profile.credits,
       });
+      
+      // 식별 완료 표시
+      userIdentified.current = true;
+      console.info('[ClientAnalyticsProvider] User identified once:', user.id);
+    } catch (error) {
+      console.error('[ClientAnalyticsProvider] Error setting user identity:', error);
     }
-  }, [user?.id, profile]);
+  }, [user?.id, profile, isAnalyticsReady]);
 
-  // 페이지 뷰 추적
+  // 로그아웃 시 식별 플래그 초기화
   useEffect(() => {
-    if (!pathname) return;
+    if (!user) {
+      userIdentified.current = false;
+    }
+  }, [user]);
+
+  // 페이지 뷰 추적 - 경로 변경 시에만 실행
+  useEffect(() => {
+    if (!isAnalyticsReady || !pathname || pathname === lastPathTracked.current) return;
     
-    // 현재 URL로 페이지 뷰 이벤트 추적
-    analytics.trackEvent(Events.PAGE_VIEW, {
-      page: pathname,
-      user_id: user?.id,
-      subscription_tier: profile?.subscription_tier,
-    });
-  }, [pathname, user?.id, profile?.subscription_tier]);
+    try {
+      // 현재 URL로 페이지 뷰 이벤트 추적
+      analytics.trackEvent(Events.PAGE_VIEW, {
+        page: pathname,
+        user_id: user?.id,
+        subscription_tier: profile?.subscription_tier,
+      });
+      
+      // 마지막 추적 경로 업데이트
+      lastPathTracked.current = pathname;
+    } catch (error) {
+      console.error('[ClientAnalyticsProvider] Error tracking page view:', error);
+    }
+  }, [pathname, user?.id, profile?.subscription_tier, isAnalyticsReady]);
 
   // 자식 컴포넌트 렌더링 (UI에 영향 없음)
   return <>{children}</>;

@@ -84,19 +84,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             // 프로필 전체 정보 설정 (크레딧 정보 포함)
             setProfile(profile);
 
-            // 믹스패널에 사용자 정보 설정
-            if (profile) {
-              analytics.identify(profile.id);
-              analytics.setUserProfile({
-                $name: profile.full_name,
-                $email: profile.email,
-                subscription_tier: profile.subscription_tier,
-                subscription_status: profile.subscription_status,
-                phone: profile.phone,
-                credits: profile.credits,
-              });
-            }
-
             // 카카오 로그인 사용자이고, provider_token이 있으며, 프로필 정보가 부족할 경우 카카오 API 호출
             if (
               currentSession.user.app_metadata.provider === 'kakao' &&
@@ -208,13 +195,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(newSession);
       fetchAndSetUserProfile(newSession);
 
-      // 로그인/로그아웃 이벤트 추적
+      // 로그인/로그아웃 이벤트 추적 (이벤트만 추적하고 사용자 식별은 하지 않음)
       if (_event === 'SIGNED_IN') {
         analytics.trackEvent(Events.SIGN_IN, {
           provider: newSession?.user?.app_metadata?.provider || 'unknown',
         });
       } else if (_event === 'SIGNED_OUT') {
         analytics.trackEvent(Events.SIGN_OUT);
+        // 로그아웃 시 사용자 식별 초기화
+        analytics.resetIdentity();
       }
     });
 
@@ -255,8 +244,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSubscriptionStatus(null); // 로그아웃 시 구독 상태 초기화
       showToast('로그아웃 되었습니다.', 'success');
       
-      // 로그아웃 이벤트 추적
+      // 로그아웃 이벤트 추적 (이벤트만 추적)
       analytics.trackEvent(Events.SIGN_OUT);
+      // 로그아웃 시 사용자 식별 초기화
+      analytics.resetIdentity();
       
       if (router && typeof router.push === 'function') router.push('/');
     } catch (_error: unknown) {
