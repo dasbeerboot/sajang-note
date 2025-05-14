@@ -5,7 +5,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://sajang-note.vercel.app';
   
   // Supabase 클라이언트 생성
-  const supabase = createClient(
+  const _supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL || '',
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
   );
@@ -36,7 +36,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   try {
     // 공개된 페이지가 있다면 추가
     // 주의: 여기에서는 일반적으로 공개된 페이지만 포함해야 합니다
-    // const { data: publicPages } = await supabase
+    // const { data: publicPages } = await _supabase
     //   .from('public_pages')
     //   .select('slug, updated_at')
     //   .eq('is_published', true);

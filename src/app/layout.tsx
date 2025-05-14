@@ -81,9 +81,9 @@ export const metadata: Metadata = {
     creator: '@juwon_chun',
   },
   verification: {
-    google: 'google-site-verification-code', // 실제 Google 사이트 인증 코드로 대체해야 합니다
+    google: 'Sc6WWxs7gLwc0WmXUgXwmdW1VPDmwTcwTQSGuHHY_GY',
     other: {
-      'naver-site-verification': 'naver-site-verification-code', // 실제 Naver 사이트 인증 코드로 대체해야 합니다
+      'naver-site-verification': '1cea7a491ce0f21d3e280c36fb0b62fa938f2456',
     },
   },
 };
