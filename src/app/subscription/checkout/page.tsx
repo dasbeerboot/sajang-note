@@ -4,8 +4,9 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useRouter } from 'next/navigation';
-import { CreditCard, CheckCircle, ArrowLeft } from '@phosphor-icons/react';
+import { CreditCard, CheckCircle, ArrowLeft, Question } from '@phosphor-icons/react';
 import { useAuthModal } from '@/contexts/AuthModalContext';
+import CreditInfoTooltip from '@/components/CreditInfoTooltip';
 
 interface SubscriptionPlan {
   id: string;
@@ -41,6 +42,10 @@ export default function CheckoutPage() {
     card_name?: string;
     card_number?: string;
   } | null>(null);
+
+  // 크레딧 툴팁 상태
+  const [creditInfoOpen, setCreditInfoOpen] = useState(false);
+  const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
 
   // 구독 플랜 로드
   useEffect(() => {
@@ -331,13 +336,37 @@ export default function CheckoutPage() {
                 <ul className="space-y-3">
                   {plan.features &&
                     plan.features.map((feature, index) => (
-                      <li key={index} className="flex items-center">
-                        <CheckCircle
-                          size={16}
-                          weight="fill"
-                          className="text-success mr-2 flex-shrink-0"
-                        />
-                        <span className="text-sm">{feature}</span>
+                      <li 
+                        key={index} 
+                        className={`flex items-center ${
+                          index === plan.features.length - 1 ? 'justify-between' : ''
+                        }`}
+                      >
+                        <div className="flex items-center">
+                          <CheckCircle
+                            size={16}
+                            weight="fill"
+                            className="text-success mr-2 flex-shrink-0"
+                          />
+                          <span className="text-sm">{feature}</span>
+                        </div>
+                        
+                        {index === plan.features.length - 1 && feature.includes('크레딧') && (
+                          <button 
+                            className="btn btn-ghost btn-xs p-1"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              setTooltipPosition({
+                                x: rect.left + window.scrollX,
+                                y: rect.top + window.scrollY
+                              });
+                              setCreditInfoOpen(true);
+                            }}
+                          >
+                            <Question size={16} className="text-gray-500" />
+                          </button>
+                        )}
                       </li>
                     ))}
                 </ul>
@@ -506,6 +535,13 @@ export default function CheckoutPage() {
           </div>
         </div>
       </div>
+
+      {/* 크레딧 정보 툴팁 */}
+      <CreditInfoTooltip
+        isOpen={creditInfoOpen}
+        onClose={() => setCreditInfoOpen(false)}
+        position={tooltipPosition}
+      />
     </div>
   );
 }

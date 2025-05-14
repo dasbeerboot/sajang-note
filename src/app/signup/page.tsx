@@ -294,7 +294,7 @@ export default function SignupPage() {
                 type="text"
                 value={name}
                 onChange={e => setName(e.target.value)}
-                className="input input-bordered w-full"
+                className="input input-bordered w-full text-base"
                 required
               />
             </div>
@@ -307,7 +307,7 @@ export default function SignupPage() {
                 type="email"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
-                className="input input-bordered w-full"
+                className="input input-bordered w-full text-base"
                 required
               />
             </div>
@@ -320,7 +320,7 @@ export default function SignupPage() {
                 type="password"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
-                className="input input-bordered w-full"
+                className="input input-bordered w-full text-base"
                 required
                 minLength={6}
               />
@@ -334,7 +334,7 @@ export default function SignupPage() {
                 type="tel"
                 value={phone}
                 onChange={e => setPhone(e.target.value.replace(/[^0-9]/g, ''))}
-                className="input input-bordered w-full"
+                className="input input-bordered w-full text-base"
                 required
                 pattern="01[016789][0-9]{7,8}"
                 placeholder="01012345678"
@@ -370,7 +370,7 @@ export default function SignupPage() {
                 type="text"
                 value={verificationCode}
                 onChange={e => setVerificationCode(e.target.value.replace(/[^0-9]/g, ''))}
-                className="input input-bordered w-full"
+                className="input input-bordered w-full text-base"
                 required
                 maxLength={6}
                 placeholder="6자리 숫자"

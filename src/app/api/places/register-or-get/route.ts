@@ -73,11 +73,23 @@ export async function POST(request: Request) {
     const body: RequestBody = await request.json();
     const originalUrl = body.url;
 
-    if (!originalUrl) {
+    if (!originalUrl || !originalUrl.trim()) {
       return NextResponse.json({ error: 'URL이 필요합니다.' }, { status: 400 });
     }
 
-    const naverPlaceId = extractNaverPlaceId(originalUrl);
+    const trimmedOriginalUrl = originalUrl.trim();
+
+    if (trimmedOriginalUrl.startsWith('https://naver.me/')) {
+      return NextResponse.json(
+        {
+          error:
+            '단축 URL은 사용할 수 없습니다. ID가 포함된 전체 네이버 플레이스 URL을 입력해주세요. (예: https://m.place.naver.com/restaurant/12345)',
+        },
+        { status: 400 }
+      );
+    }
+
+    const naverPlaceId = extractNaverPlaceId(trimmedOriginalUrl);
 
     if (!naverPlaceId) {
       return NextResponse.json(

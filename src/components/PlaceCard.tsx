@@ -150,7 +150,7 @@ export default function PlaceCard({
                 </div>
               )}
             </div>
-            <p className="text-sm text-base-content/60 mt-1 flex">
+            <p className="text-sm text-base-content/60 mt-1 flex text-start">
               {place.place_address || '주소 로딩 중...'}
             </p>
             {place.status === 'processing' && (

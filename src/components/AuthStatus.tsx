@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useAuthModal } from '@/contexts/AuthModalContext'; // openAuthModal을 위해 다시 추가
 import Link from 'next/link';
 import Image from 'next/image';
-import { User, CreditCard } from '@phosphor-icons/react';
+import { User, CreditCard, Storefront } from '@phosphor-icons/react';
 import { useRouter } from 'next/navigation';
 import { useRef, useState, useEffect } from 'react';
 
@@ -85,6 +85,17 @@ export default function AuthStatus() {
         <CreditCard size={18} />
         <span className="hidden sm:inline">구독 관리</span>
       </button>
+
+      {user && (
+        <Link
+          href="/my-places"
+          className="btn btn-sm btn-ghost text-white hover:bg-white/20 flex items-center gap-1"
+          title="내 매장 관리"
+        >
+          <Storefront size={18} />
+          <span className="hidden sm:inline">My</span>
+        </Link>
+      )}
 
       {user ? (
         <div ref={dropdownRef} className="relative">

@@ -118,13 +118,15 @@ async function getUserIdFromToken(authHeader: string | null): Promise<string | n
   }
 }
 
-// 구독 상태와 무료 체험 횟수 확인 함수
+// 구독 상태와 크레딧 확인 함수
 async function checkUserPermission(
-  userId: string
+  userId: string,
+  copyType: string
 ): Promise<{
   canGenerate: boolean;
   isActiveSubscription: boolean;
   remainingCount?: number;
+  remainingCredits?: number;
   message?: string;
 }> {
   try {
@@ -132,7 +134,7 @@ async function checkUserPermission(
     const { data: profile, error } = await supabaseAdmin
       .from('profiles')
       .select(
-        'subscription_tier, subscription_status, subscription_end_date, free_trial_copy_remaining'
+        'subscription_tier, subscription_status, subscription_end_date, free_trial_copy_remaining, credits'
       )
       .eq('id', userId)
       .single();
@@ -156,15 +158,29 @@ async function checkUserPermission(
         subscriptionEndDate &&
         subscriptionEndDate > now);
 
-    // 구독중인 경우 무제한 생성 가능
+    // 크레딧 소요량 계산
+    const requiredCredits = copyType === 'blog_review_post' ? 2 : 1;
+
+    // 구독 중인 경우 크레딧 확인
     if (isActiveSubscription) {
+      // 크레딧이 부족하면 생성 불가
+      if (profile.credits < requiredCredits) {
+        return {
+          canGenerate: false,
+          isActiveSubscription: true,
+          remainingCredits: profile.credits,
+          message: `크레딧이 부족합니다. 필요: ${requiredCredits}, 보유: ${profile.credits}`,
+        };
+      }
+
       return {
         canGenerate: true,
         isActiveSubscription: true,
+        remainingCredits: profile.credits,
       };
     }
 
-    // 무료 체험 횟수 확인
+    // 구독자가 아닌 경우 무료 체험 횟수 확인
     if (profile.free_trial_copy_remaining <= 0) {
       return {
         canGenerate: false,
@@ -173,8 +189,7 @@ async function checkUserPermission(
       };
     }
 
-    // 여기서는 차감하지 않고 사용 가능 여부만 확인
-    // 실제 차감은 AI 생성 성공 후에 진행
+    // 무료 체험 사용 가능
     return {
       canGenerate: true,
       isActiveSubscription: false,
@@ -205,6 +220,120 @@ async function decrementFreeTrialCount(userId: string): Promise<{ remainingCount
   } catch (error) {
     console.error(`[DB 오류] 무료 체험 횟수 차감 중 오류: ${error.message}`);
     throw error;
+  }
+}
+
+// 크레딧 차감 함수
+async function deductCredits(
+  userId: string,
+  feature: string,
+  amount: number
+): Promise<{ success: boolean; remainingCredits?: number; message?: string }> {
+  try {
+    console.log(`[크레딧 차감 시작] 사용자: ${userId}, 기능: ${feature}, 금액: ${amount}`);
+
+    // DB 함수 호출하여 크레딧 차감
+    const { data, error } = await supabaseAdmin.rpc('deduct_user_credits', {
+      p_user_id: userId,
+      p_feature: feature,
+      p_amount: amount,
+    });
+
+    console.log(
+      `[크레딧 차감 DB 응답] 데이터: ${JSON.stringify(data)}, 오류: ${error ? error.message : '없음'}`
+    );
+
+    if (error) {
+      console.error(`[DB 오류] 크레딧 차감 실패: ${error.message}`);
+      return {
+        success: false,
+        message: `크레딧 차감 실패: ${error.message}`,
+      };
+    }
+
+    if (data === false) {
+      console.log(`[크레딧 부족] 크레딧이 부족합니다.`);
+      return {
+        success: false,
+        message: '크레딧이 부족합니다',
+      };
+    }
+
+    // 남은 크레딧 조회
+    console.log(`[크레딧 차감 후] 남은 크레딧 조회 시작`);
+    const { data: profileData, error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .select('credits')
+      .eq('id', userId)
+      .single();
+
+    if (profileError) {
+      console.error(`[DB 오류] 남은 크레딧 조회 실패: ${profileError.message}`);
+      return {
+        success: true,
+        message: '크레딧이 차감되었으나 남은 수량을 확인할 수 없습니다',
+      };
+    }
+
+    console.log(`[크레딧 차감 완료] 남은 크레딧: ${profileData.credits}`);
+    return {
+      success: true,
+      remainingCredits: profileData.credits,
+    };
+  } catch (error) {
+    console.error(`[크레딧 차감 오류] ${error.message}`);
+    console.error(error.stack);
+    return {
+      success: false,
+      message: `크레딧 차감 중 오류 발생: ${error.message}`,
+    };
+  }
+}
+
+// AI 생성 결과 저장 함수
+async function saveGeneratedCopy(
+  userId: string,
+  placeId: string,
+  copyType: string,
+  userPrompt: string | undefined,
+  generatedContent: string
+): Promise<{ success: boolean; message?: string }> {
+  try {
+    console.log(`[저장 시도] 카피 저장 시작: 사용자=${userId}, 장소=${placeId}, 타입=${copyType}`);
+
+    const { error } = await supabaseAdmin.from('ai_generated_copies').upsert(
+      {
+        place_id: placeId,
+        user_id: userId,
+        copy_type: copyType,
+        user_prompt: userPrompt || null,
+        generated_content: generatedContent,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+      {
+        onConflict: 'place_id,copy_type',
+      }
+    );
+
+    if (error) {
+      console.error(`[저장 오류] AI 카피 저장 실패: ${error.message}`);
+      return {
+        success: false,
+        message: `저장 실패: ${error.message}`,
+      };
+    }
+
+    console.log(`[저장 성공] AI 카피가 DB에 저장됨: ${copyType}`);
+    return {
+      success: true,
+    };
+  } catch (error) {
+    console.error(`[저장 오류] 예외 발생: ${error.message}`);
+    return {
+      success: false,
+      message: `저장 중 오류 발생: ${error.message}`,
+    };
   }
 }
 
@@ -280,19 +409,23 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // 구독 상태 및 무료 체험 횟수 확인 - 생성 전에 사용 가능 여부만 확인
+    // 구독 상태 및 크레딧 확인
     let permissionCheck;
     let isActiveSubscription = false;
     let remainingCount;
+    let remainingCredits;
 
     try {
-      permissionCheck = await checkUserPermission(userId);
+      permissionCheck = await checkUserPermission(userId, copyType);
 
       if (!permissionCheck.canGenerate) {
         return new Response(
           JSON.stringify({
             error: permissionCheck.message || '카피를 생성할 수 없습니다',
-            errorCode: 'FREE_TRIAL_LIMIT_EXCEEDED',
+            errorCode: permissionCheck.isActiveSubscription
+              ? 'INSUFFICIENT_CREDITS'
+              : 'FREE_TRIAL_LIMIT_EXCEEDED',
+            remainingCredits: permissionCheck.remainingCredits,
           }),
           {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -303,6 +436,7 @@ Deno.serve(async (req: Request) => {
 
       isActiveSubscription = permissionCheck.isActiveSubscription;
       remainingCount = permissionCheck.remainingCount;
+      remainingCredits = permissionCheck.remainingCredits;
     } catch (permissionError) {
       console.error(`[권한 오류] 사용자 권한 확인 실패: ${permissionError.message}`);
       return new Response(
@@ -393,22 +527,59 @@ Deno.serve(async (req: Request) => {
       const processingTime = (requestEnd.getTime() - requestStart.getTime()) / 1000;
       console.log(`[생성 요청 완료] 처리 시간: ${processingTime}초`);
 
-      // 5. AI 생성 성공 후에만 무료 체험 횟수 차감
-      if (!isActiveSubscription) {
-        try {
-          const decrementResult = await decrementFreeTrialCount(userId);
-          remainingCount = decrementResult.remainingCount;
-          console.log(`[무료 체험] 횟수 차감 완료, 남은 횟수: ${remainingCount}`);
-        } catch (decrementError) {
-          console.error(`[무료 체험] 횟수 차감 실패: ${decrementError.message}`);
-          // 차감에 실패해도 생성된 결과는 반환
+      // 1. 먼저 AI 생성 결과 저장 시도
+      const saveResult = await saveGeneratedCopy(
+        userId,
+        placeId,
+        copyType,
+        userPrompt,
+        generatedText
+      );
+      console.log(
+        `[저장 결과] ${saveResult.success ? '성공' : '실패'}: ${saveResult.message || ''}`
+      );
+
+      // 2. 저장이 성공한 경우에만 크레딧 차감 또는 무료 체험 차감
+      if (saveResult.success) {
+        if (isActiveSubscription) {
+          console.log(`[크레딧 처리] 구독 사용자(${userId})의 크레딧 차감 시도`);
+          // 크레딧 차감량 결정 (블로그는 2크레딧, 나머지는 1크레딧)
+          const creditAmount = copyType === 'blog_review_post' ? 2 : 1;
+          console.log(`[크레딧 차감] 카피 타입: ${copyType}, 차감 금액: ${creditAmount}`);
+
+          const deductResult = await deductCredits(userId, copyType, creditAmount);
+
+          if (!deductResult.success) {
+            console.error(`[크레딧 차감 실패] ${deductResult.message}`);
+            // 차감 실패해도 결과는 반환
+          } else {
+            console.log(
+              `[크레딧 차감 성공] ${creditAmount} 크레딧 차감됨. 남은 크레딧: ${deductResult.remainingCredits}`
+            );
+            remainingCredits = deductResult.remainingCredits;
+          }
+        } else {
+          console.log(`[무료 체험 처리] 무료 사용자(${userId})의 체험 횟수 차감`);
+          // 무료 체험 횟수 차감
+          try {
+            const decrementResult = await decrementFreeTrialCount(userId);
+            remainingCount = decrementResult.remainingCount;
+            console.log(`[무료 체험] 횟수 차감 완료, 남은 횟수: ${remainingCount}`);
+          } catch (decrementError) {
+            console.error(`[무료 체험] 횟수 차감 실패: ${decrementError.message}`);
+            // 차감에 실패해도 생성된 결과는 반환
+          }
         }
+      } else {
+        console.log(`[저장 실패] 크레딧이 차감되지 않습니다.`);
       }
 
       return new Response(
         JSON.stringify({
           generatedCopy: generatedText,
-          remainingCount: remainingCount,
+          remainingCount,
+          remainingCredits,
+          saved: saveResult.success,
         }),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },

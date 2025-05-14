@@ -37,6 +37,7 @@ const eslintConfig = [
       "react/prop-types": "off", // TypeScript 사용 시 불필요
       "react/jsx-filename-extension": ["warn", { "extensions": [".jsx", ".tsx"] }],
       "@typescript-eslint/no-unused-vars": ["error", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_", "ignoreRestSiblings": true }],
+      "@typescript-eslint/no-empty-object-type": ["error", { "allowObjectTypes": true }],
       "import/no-anonymous-default-export": "warn",
       "no-console": ["warn", { "allow": ["warn", "error", "info"] }],
       "jsx-a11y/alt-text": "warn",

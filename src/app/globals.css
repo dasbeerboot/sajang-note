@@ -75,6 +75,12 @@
   --noise: 0;
 }
 
+@layer components {
+  .input {
+    font-size: 1rem; /* 모든 DaisyUI input의 기본 폰트 크기를 1rem (16px)로 설정 */
+  }
+}
+
 /* 기본 스타일링 */
 body {
   background: var(--background);

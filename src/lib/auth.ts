@@ -2,11 +2,30 @@
 
 import { getSupabaseBrowserClient } from './supabase';
 
+// 현재 환경에 맞는 콜백 URL을 반환하는 헬퍼 함수
+const getRedirectUrl = () => {
+  // 클라이언트 사이드에서 NEXT_PUBLIC_SITE_URL 환경 변수를 우선 사용하고, 없으면 window.location.origin 사용
+  const siteUrl =
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    (typeof window !== 'undefined' ? window.location.origin : '');
+  if (!siteUrl) {
+    console.warn(
+      'Warning: NEXT_PUBLIC_SITE_URL is not set and window.location.origin is unavailable. Callback URL might be incorrect.'
+    );
+    // 매우 기본적인 fallback (프로덕션에서는 반드시 NEXT_PUBLIC_SITE_URL 설정 필요)
+    return 'http://localhost:3000/auth/callback';
+  }
+  return `${siteUrl}/auth/callback`;
+};
+
 /**
  * 이메일과 비밀번호로 로그인합니다.
  */
 export const signInWithPassword = async (email: string, password: string) => {
   const supabase = getSupabaseBrowserClient();
+  // signInWithPassword는 직접적인 redirectTo 옵션이 email 확인 링크용이므로,
+  // 여기서는 일반 로그인 후 리다이렉트는 클라이언트가 알아서 처리.
+  // 만약 이메일 확인(confirm email) 후 특정 페이지로 보내고 싶다면 emailRedirectTo를 사용.
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password,
@@ -23,7 +42,7 @@ export const signInWithOtp = async (email: string) => {
   const { data, error } = await supabase.auth.signInWithOtp({
     email,
     options: {
-      emailRedirectTo: window.location.href,
+      emailRedirectTo: getRedirectUrl(),
     },
   });
 
@@ -38,7 +57,7 @@ export const signInWithGoogle = async () => {
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
-      redirectTo: window.location.href,
+      redirectTo: getRedirectUrl(),
     },
   });
 
@@ -54,7 +73,7 @@ export const signInWithKakao = async () => {
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'kakao',
     options: {
-      redirectTo: window.location.href,
+      redirectTo: getRedirectUrl(),
       scopes: 'profile_nickname,profile_image,account_email,name,phone_number',
     },
   });

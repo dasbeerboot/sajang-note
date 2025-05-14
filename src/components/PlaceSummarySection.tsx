@@ -202,12 +202,6 @@ export default function PlaceSummarySection({
                       {crawled_data.basic_info.phone_number}
                     </p>
                   )}
-                  {crawled_data?.detailed_info?.opening_hours_raw && (
-                    <p>
-                      <span className="font-semibold">영업:</span>{' '}
-                      {crawled_data.detailed_info.opening_hours_raw}
-                    </p>
-                  )}
                 </div>
 
                 {/* 리뷰 정보 표시 */}

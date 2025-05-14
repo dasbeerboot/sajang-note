@@ -9,13 +9,38 @@ import axios from 'axios';
 
 type SubscriptionStatusValue = 'active' | 'canceled' | 'none' | 'free'; // 'free' 추가 또는 기존 상태와 통합 고려
 
+type Profile = {
+  id: string;
+  email: string | null;
+  full_name: string | null;
+  phone: string | null;
+  phone_verified: boolean | null;
+  user_status: string;
+  subscription_tier: string;
+  subscription_status: string;
+  subscription_end_date: string | null;
+  max_places: number;
+  billing_id: string | null;
+  card_info: Record<string, unknown> | null;
+  next_place_change_date: string | null;
+  remaining_place_changes: number;
+  free_trial_copy_remaining: number | null;
+  is_new_user: boolean | null;
+  credits: number;
+  last_credits_refresh: string | null;
+};
+
 type AuthContextType = {
   session: Session | null;
   user: User | null;
+  profile: Profile | null;
   loading: boolean;
   signOut: () => Promise<void>;
+  signInWithKakao: () => Promise<void>;
+  refreshProfileData: () => Promise<void>;
   isProfileComplete: boolean;
-  subscriptionStatus: SubscriptionStatusValue | null; // 추가
+  subscriptionStatus: SubscriptionStatusValue | null;
+  setProfile: (profile: Profile | null) => void;
   supabase: SupabaseClient; // supabase 인스턴스를 컨텍스트에 추가 (선택적이지만 편리할 수 있음)
 };
 
@@ -30,6 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [subscriptionStatus, setSubscriptionStatus] = useState<SubscriptionStatusValue | null>(
     null
   ); // 추가
+  const [profile, setProfile] = useState<Profile | null>(null);
   const router = useRouter();
   const { showToast } = useToast();
 
@@ -40,11 +66,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
           const { data: profile, error } = await supabase
             .from('profiles')
-            .select('phone_verified, full_name, phone, email, subscription_status')
+            .select('*') // 모든 필드를 가져오도록 변경
             .eq('id', currentSession.user.id)
             .single();
 
           if (error && error.code !== 'PGRST116') {
+            console.error('[AuthContext] 프로필 정보 조회 중 오류:', error);
             setIsProfileComplete(false);
             setSubscriptionStatus(null);
           } else if (profile) {
@@ -52,6 +79,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const isComplete = !!(profile.phone_verified && profile.full_name);
             setIsProfileComplete(isComplete);
             setSubscriptionStatus(profile.subscription_status as SubscriptionStatusValue);
+
+            // 프로필 전체 정보 설정 (크레딧 정보 포함)
+            setProfile(profile);
+
+            console.log('[AuthContext] 프로필 정보 로드 완료:', {
+              id: profile.id,
+              credits: profile.credits || 0,
+              last_credits_refresh: profile.last_credits_refresh,
+            });
 
             // 카카오 로그인 사용자이고, provider_token이 있으며, 프로필 정보가 부족할 경우 카카오 API 호출
             if (
@@ -120,8 +156,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                       updateError
                     );
                   } else {
-                    // 프로필 업데이트 후 상태 다시 확인 (선택적)
-                    // await checkProfileStatus(currentSession.user.id);
+                    // 프로필 업데이트 후 전체 프로필 데이터 다시 조회
+                    const { data: updatedProfile, error: fetchError } = await supabase
+                      .from('profiles')
+                      .select('*')
+                      .eq('id', currentSession.user.id)
+                      .single();
+
+                    if (!fetchError && updatedProfile) {
+                      setProfile(updatedProfile);
+                      console.log('[AuthContext] 카카오 정보로 업데이트된 프로필 정보 로드 완료:', {
+                        id: updatedProfile.id,
+                        credits: updatedProfile.credits || 0,
+                        last_credits_refresh: updatedProfile.last_credits_refresh,
+                      });
+                    }
                   }
                 }
               } catch (kakaoApiError: unknown) {
@@ -221,13 +270,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const signInWithKakao = async () => {
+    // Implementation of signInWithKakao
+  };
+
+  const refreshProfileData = async () => {
+    // Implementation of refreshProfileData
+  };
+
   const value = {
     session,
     user,
+    profile,
     loading,
     signOut,
+    signInWithKakao,
+    refreshProfileData,
     isProfileComplete,
-    subscriptionStatus, // 추가
+    subscriptionStatus,
+    setProfile,
     supabase, // supabase 인스턴스 컨텍스트 통해 제공
   };
 

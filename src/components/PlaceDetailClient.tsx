@@ -11,6 +11,8 @@ import Link from 'next/link';
 import AILoadingState from '@/components/AILoadingState';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/contexts/ToastContext';
+import { useAuth } from '@/contexts/AuthContext';
+import UserCredits from '@/components/UserCredits';
 
 interface BasicInfo {
   representative_images?: string[];
@@ -101,10 +103,15 @@ export default function PlaceDetailClient({
   const [generatedCopy, setGeneratedCopy] = useState<string | null>(null);
   const [showNewCopyModal, setShowNewCopyModal] = useState(false);
 
+  // 크레딧 상태 관리 - 로컬 상태만 유지
+  const [localCredits, setLocalCredits] = useState<number>(0);
+
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
+
+  const { profile, setProfile } = useAuth();
 
   // 저장된 카피 로드 함수
   const loadSavedCopies = useCallback(
@@ -270,13 +277,16 @@ export default function PlaceDetailClient({
     }
   };
 
-  // 카피 생성 처리
-  const handleGenerateCopy = async (userPromptValue: string) => {
-    if (!placeData || !activeMenuId) return;
+  // AI 생성 완료 후 크레딧 업데이트 핸들러
+  const handleCreditsChange = (credits: number) => {
+    setLocalCredits(credits);
+  };
 
+  // 카피 생성 처리
+  const handleGenerateCopy = async () => {
     setIsGeneratingCopy(true);
     setGeneratedCopy(null);
-
+    
     try {
       // 무료 체험 횟수 확인 및 구독 상태 확인
       const { data: profileData, error: profileError } = await supabase
@@ -296,13 +306,10 @@ export default function PlaceDetailClient({
         return;
       }
 
-      // 무료 체험 차감 여부 확인 - DB 함수와 동일한 로직 적용
       const now = new Date();
       const subscriptionEndDate = profileData.subscription_end_date
         ? new Date(profileData.subscription_end_date)
         : null;
-
-      // 구독 상태가 active이거나, canceled이지만 아직 만료되지 않은 경우만 유효한 구독으로 간주
       const isActiveSubscription =
         (profileData.subscription_tier !== 'free' &&
           profileData.subscription_status === 'active') ||
@@ -311,7 +318,6 @@ export default function PlaceDetailClient({
           subscriptionEndDate &&
           subscriptionEndDate > now);
 
-      // 구독중이 아니고 무료 체험 횟수가 0인 경우
       if (!isActiveSubscription && profileData.free_trial_copy_remaining <= 0) {
         showToast(
           '무료 체험 횟수를 모두 사용했습니다. 구독하신 후 이용하실 수 있습니다',
@@ -321,46 +327,100 @@ export default function PlaceDetailClient({
         return;
       }
 
-      // 클라이언트에서는 차감하지 않고 Edge Function에서만 차감하도록 수정
-      // Edge Function에서 성공적으로 응답을 받은 후에만 차감됨
-
       const { data, error } = await supabase.functions.invoke('generate-ai-copy', {
         body: {
-          placeId: placeData.id,
+          placeId: placeData?.id,
           copyType: activeMenuId,
-          userPrompt: userPromptValue || null, // 빈 문자열이면 null로 처리 (기본 생성)
+          userPrompt: null,
         },
       });
 
       if (error) {
-        showToast('카피 생성 중 오류가 발생했습니다: ' + error.message, 'error');
-        setGeneratedCopy('오류: ' + error.message);
+        let specificErrorHandled = false;
+        if (typeof error === 'object' && error !== null && 'context' in error) {
+          const errContext = (error as Record<string, unknown>).context;
+          if (errContext && typeof errContext === 'object' && 'status' in errContext && typeof errContext.status === 'number') {
+            const status = errContext.status;
+            const message = (error as { message?: string }).message || '알 수 없는 오류 메시지';
+            if (status === 500 || status === 503) {
+              showToast(
+                'AI 동시 요청이 너무 많아 서비스가 지연되고 있습니다. 잠시 후 다시 시도해주세요.',
+                'error'
+              );
+              specificErrorHandled = true;
+            } else {
+              showToast(`카피 생성 중 오류가 발생했습니다 (코드: ${status}): ${message}`, 'error');
+              specificErrorHandled = true;
+            }
+          }
+        }
+        if (!specificErrorHandled) {
+          showToast('카피 생성 중 오류가 발생했습니다: ' + ((error as { message?: string }).message || '알 수 없는 오류'), 'error');
+        }
+        setGeneratedCopy('오류: ' + ((error as { message?: string }).message || '알 수 없는 오류'));
       } else if (data && typeof data.generatedCopy === 'string') {
         const generatedContent = data.generatedCopy;
         setGeneratedCopy(generatedContent);
 
-        // 생성된 카피 저장
-        await saveCopy(placeData.id, activeMenuId, userPromptValue, generatedContent);
-
-        // 저장된 메뉴 목록 업데이트
-        if (!savedMenuIds.includes(activeMenuId)) {
-          setSavedMenuIds(prev => [...prev, activeMenuId]);
+        // Edge Function에서 저장 여부 확인 (saved 필드)
+        if (data.saved === true && placeData && activeMenuId) {
+          // 저장 리스트에 추가
+          if (!savedMenuIds.includes(activeMenuId)) {
+            setSavedMenuIds(prev => [...prev, activeMenuId]);
+          }
+          
+          // 로컬 스토리지에도 저장
+          localStorage.setItem(`copy_${placeData.id}_${activeMenuId}`, generatedContent);
+        } else if (placeData && activeMenuId) {
+          // Edge Function에서 저장하지 못한 경우 클라이언트에서 저장 시도
+          await saveCopy(placeData.id, activeMenuId, "", generatedContent);
         }
 
-        // localStorage에도 저장
-        localStorage.setItem(`copy_${placeData.id}_${activeMenuId}`, generatedContent);
-
-        // 성공적으로 생성되었으므로 남은 무료 체험 횟수 UI 업데이트 (실제 차감은 Edge Function에서 처리됨)
-        if (!isActiveSubscription && data.remainingCount !== undefined) {
+        // 크레딧 정보 업데이트 (Edge Function에서 남은 크레딧 정보를 받은 경우)
+        if (data.remainingCredits !== undefined) {
+          // 로컬 상태 즉시 업데이트
+          setLocalCredits(data.remainingCredits);
+          
+          // AuthContext profile도 업데이트 시도 
+          if (profile && setProfile) {
+            setProfile({
+              ...profile,
+              credits: data.remainingCredits
+            });
+          }
+          
+          showToast(`남은 크레딧: ${data.remainingCredits}`, 'info');
+        }
+        // 무료 체험 사용자인 경우
+        else if (data.remainingCount !== undefined) {
           showToast(`남은 무료 체험 횟수: ${data.remainingCount}회`, 'info');
         }
       } else {
         setGeneratedCopy('알 수 없는 응답 형식입니다.');
+        showToast('카피 생성 후 알 수 없는 응답을 받았습니다.', 'error');
       }
     } catch (err: unknown) {
-      const errorMsg = err instanceof Error ? err.message : '알 수 없는 에러가 발생했습니다';
-      showToast('카피 생성 중 예외가 발생했습니다: ' + errorMsg, 'error');
-      setGeneratedCopy('예외: ' + errorMsg);
+      let errorMsg = '알 수 없는 에러가 발생했습니다';
+      let toastType: 'error' | 'warning' = 'error';
+      if (typeof err === 'object' && err !== null && 'context' in err) {
+        const errContext = (err as Record<string, unknown>).context;
+        if (errContext && typeof errContext === 'object' && 'status' in errContext && typeof errContext.status === 'number') {
+          const status = errContext.status;
+          const message = (err as { message?: string }).message || '알 수 없는 오류 메시지';
+          if (status === 500 || status === 503) {
+            errorMsg = 'AI 동시 요청이 너무 많아 서비스가 지연되고 있습니다. 잠시 후 다시 시도해주세요.';
+            toastType = 'warning';
+          } else {
+             errorMsg = `카피 생성 중 예외가 발생했습니다 (코드: ${status}): ${message}`;
+          }
+        } else if (err instanceof Error) {
+          errorMsg = `카피 생성 중 예외가 발생했습니다: ${err.message}`;
+        }
+      } else if (err instanceof Error) {
+        errorMsg = `카피 생성 중 예외가 발생했습니다: ${err.message}`;
+      }
+      showToast(errorMsg, toastType);
+      setGeneratedCopy('예외: ' + (err instanceof Error ? err.message : String(err)));
     } finally {
       setIsGeneratingCopy(false);
     }
@@ -373,22 +433,30 @@ export default function PlaceDetailClient({
     userPrompt: string,
     content: string
   ) => {
+    if (!user?.id) {
+      showToast('사용자 정보가 없어 카피를 저장할 수 없습니다.', 'error');
+      return;
+    }
+    const payload = {
+      place_id: placeId,
+      user_id: user.id,
+      copy_type: copyType,
+      user_prompt: userPrompt,
+      generated_content: content,
+      updated_at: new Date().toISOString(),
+    };
+    
     const { error } = await supabase.from('ai_generated_copies').upsert(
-      {
-        place_id: placeId,
-        user_id: user?.id,
-        copy_type: copyType,
-        user_prompt: userPrompt,
-        generated_content: content,
-        updated_at: new Date().toISOString(),
-      },
+      payload,
       {
         onConflict: 'place_id,copy_type',
       }
     );
 
     if (error) {
-      console.error('카피 저장 오류:', error);
+      showToast('생성된 카피를 DB에 저장하는 중 오류가 발생했습니다.', 'error');
+    } else {
+      showToast('AI 카피가 저장되었습니다.', 'success');
     }
   };
 
@@ -539,10 +607,15 @@ export default function PlaceDetailClient({
       />
 
       <div className="mt-8 mb-4">
-        <h2 className="text-xl font-bold mb-4 flex items-center">
-          <MagicWand size={20} className="mr-2" />
-          AI로 만드는 진짜 팔리는 광고 카피
-        </h2>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold mb-4 flex items-center">
+            <MagicWand size={20} className="mr-2" />
+            AI로 만드는 진짜 팔리는 광고 카피
+          </h2>
+          <div className="flex items-center">
+            <UserCredits className="mr-4" onCreditsChange={handleCreditsChange} />
+          </div>
+        </div>
         <p className="text-sm text-base-content/70 mb-6">
           매장 정보를 기반으로 AI가 다양한 마케팅 카피를 생성해 드립니다. 당근마켓, 네이버 등 다양한
           플랫폼에 활용해보세요.

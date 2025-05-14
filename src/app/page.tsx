@@ -52,7 +52,7 @@ interface MyPlacesData {
 }
 
 export default function Home() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const { openAuthModal } = useAuthModal();
   const { showToast } = useToast();
@@ -64,50 +64,51 @@ export default function Home() {
   const [showSearchForm, setShowSearchForm] = useState(false);
   const [_showLimitWarning, setShowLimitWarning] = useState(false);
 
-  // 사용자 매장 정보 가져오기
   useEffect(() => {
     const fetchPlacesData = async () => {
-      if (!user) return;
-
+      if (!user) {
+        setPlacesData(null);
+        return;
+      }
+      setIsLoadingPlaces(true);
       try {
-        setIsLoadingPlaces(true);
         const response = await fetch('/api/my-places');
         if (response.ok) {
           const data = await response.json();
           setPlacesData(data);
+        } else {
+          setPlacesData(null);
         }
       } catch (error) {
         console.error('매장 정보 가져오기 오류:', error);
+        setPlacesData(null);
       } finally {
         setIsLoadingPlaces(false);
       }
     };
 
-    fetchPlacesData();
-  }, [user]);
+    if (!authLoading) {
+      fetchPlacesData();
+    }
+  }, [user, authLoading, showToast]);
 
-  // 매장 추가 버튼 클릭 핸들러
   const handleAddPlaceClick = () => {
     if (!user) {
       openAuthModal();
       return;
     }
-
-    // 매장 등록 한도 체크
     if (placesData && placesData.profile.used_places >= placesData.profile.max_places) {
       setShowLimitWarning(true);
-      setTimeout(() => setShowLimitWarning(false), 5000); // 5초 후 경고 숨김
+      setTimeout(() => setShowLimitWarning(false), 5000);
       showToast(
         `매장 등록 한도(${placesData.profile.max_places}개)에 도달했습니다. 기존 매장을 삭제하거나 플랜을 업그레이드하세요.`,
         'warning'
       );
       return;
     }
-
     setShowSearchForm(true);
   };
 
-  // 검색 폼 취소 핸들러
   const handleCancelSearch = () => {
     setShowSearchForm(false);
   };
@@ -117,13 +118,10 @@ export default function Home() {
       openAuthModal();
       return;
     }
-
     if (!url.trim()) {
       showToast('URL을 입력해주세요.', 'error');
       return;
     }
-
-    // 매장 등록 한도 체크 (중복 체크지만 혹시 모르니 남겨둠)
     if (placesData && placesData.profile.used_places >= placesData.profile.max_places) {
       showToast(
         `매장 등록 한도(${placesData.profile.max_places}개)에 도달했습니다. 기존 매장을 삭제하거나 플랜을 업그레이드하세요.`,
@@ -131,21 +129,15 @@ export default function Home() {
       );
       return;
     }
-
     setIsProcessing(true);
     setGeneratedContent(null);
-
     try {
       const response = await fetch('/api/places/register-or-get', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url }),
       });
-
       const result = await response.json();
-
       if (!response.ok) {
         showToast(result.error || '매장 정보 처리 중 오류가 발생했습니다.', 'error');
         if (result.errorCode === 'LIMIT_EXCEEDED') {
@@ -153,8 +145,6 @@ export default function Home() {
         }
         return;
       }
-
-      // Gemini API 오류인 경우 특별 처리
       if (result.isGeminiApiError) {
         showToast(
           '일시적인 AI 서비스 오류가 발생했습니다. 잠시 후 다시 시도해주세요. 문제가 지속되면 관리자에게 문의하세요.',
@@ -163,29 +153,29 @@ export default function Home() {
         setShowSearchForm(false);
         return;
       }
-
       showToast(
         result.message ||
           (result.isNew ? '매장이 등록되었습니다.' : '등록된 매장 정보를 가져왔습니다.'),
         'success'
       );
       setShowSearchForm(false);
-
-      // 매장 목록 다시 로드
-      const fetchUpdatedData = async () => {
-        try {
-          const response = await fetch('/api/my-places');
-          if (response.ok) {
-            const data = await response.json();
-            setPlacesData(data);
+      if (!authLoading && user) {
+        setIsLoadingPlaces(true);
+        const fetchUpdatedData = async () => {
+          try {
+            const res = await fetch('/api/my-places');
+            if (res.ok) {
+              const updatedData = await res.json();
+              setPlacesData(updatedData);
+            }
+          } catch (e) {
+            console.error('매장 정보 갱신 오류:', e);
+          } finally {
+            setIsLoadingPlaces(false);
           }
-        } catch (error) {
-          console.error('매장 정보 갱신 오류:', error);
-        }
-      };
-
-      // 데이터 갱신 후 페이지 이동
-      await fetchUpdatedData();
+        };
+        await fetchUpdatedData();
+      }
       router.push(`/p/${result.placeId}`);
     } catch (error) {
       console.error('API 호출 오류:', error);
@@ -195,33 +185,33 @@ export default function Home() {
     }
   };
 
-  // 매장 데이터 처리 - 이미지와 리뷰 정보 추출
-  if (placesData?.places && Array.isArray(placesData.places)) {
-    placesData.places = placesData.places.map((place: PlaceData) => {
-      // 이미지와 리뷰 데이터 설정
+  if (authLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <span className="loading loading-spinner loading-lg"></span>
+      </div>
+    );
+  }
+
+  const processedPlacesData =
+    placesData?.places?.map((place: PlaceData) => {
+      const updatedPlace = { ...place };
       if (place.crawled_data?.basic_info) {
         const basicInfo = place.crawled_data.basic_info;
-
-        // 대표 이미지 추출
         if (basicInfo.representative_images && basicInfo.representative_images.length > 0) {
-          place.place_image_url = basicInfo.representative_images[0];
+          updatedPlace.place_image_url = basicInfo.representative_images[0];
         }
-
-        // 리뷰 정보 추출
-        place.blog_reviews_count = basicInfo.blog_review_count || 0;
-        place.visitor_reviews_count = basicInfo.visitor_review_count || 0;
+        updatedPlace.blog_reviews_count = basicInfo.blog_review_count || 0;
+        updatedPlace.visitor_reviews_count = basicInfo.visitor_review_count || 0;
       }
-
-      return place;
-    });
-  }
+      return updatedPlace;
+    }) || [];
 
   return (
     <div className="container mx-auto px-4 py-8">
       <Suspense fallback={null}>
         <LoginModalTrigger />
       </Suspense>
-      {/* 히어로 섹션 */}
       <section className="text-center py-20">
         <h1 className="text-5xl font-bold mb-2">
           사장노트{' '}
@@ -236,64 +226,68 @@ export default function Home() {
           지금 <span className="text-primary font-bold">무료</span>로 사용해보세요
         </p>
 
-        {/* 소셜프루프 배지 */}
-        {/* <SocialProofBadge /> */}
-
-        {/* 검색 폼이 표시될 때 */}
-        {showSearchForm ? (
+        {(!user || showSearchForm) && (
           <div className="mb-8">
             <SearchForm onSubmit={handleSearchSubmit} />
-            <button
-              className="btn btn-ghost btn-sm mt-2"
-              onClick={handleCancelSearch}
-              disabled={isProcessing}
-            >
-              취소
-            </button>
+            {showSearchForm && user && (
+              <button
+                className="btn btn-ghost btn-sm mt-2"
+                onClick={handleCancelSearch}
+                disabled={isProcessing}
+              >
+                취소
+              </button>
+            )}
           </div>
-        ) : !user ? (
-          // 로그인하지 않은 상태일 때 검색 폼 보여주기
-          <SearchForm onSubmit={handleSearchSubmit} />
-        ) : null}
+        )}
 
-        {/* 로딩 표시 */}
-        {isLoadingPlaces && user ? (
+        {isProcessing && <AILoadingState type="analysis" customMessage="매장 정보 분석 준비 중" />}
+
+        {user && isLoadingPlaces && (
           <div className="flex justify-center items-center py-6">
             <span className="loading loading-spinner loading-md"></span>
             <span className="ml-2">매장 정보 불러오는 중...</span>
           </div>
-        ) : null}
+        )}
 
-        {isProcessing && <AILoadingState type="analysis" customMessage="매장 정보 분석 준비 중" />}
-
-        {/* 등록된 매장이 있는 경우 매장 목록 표시 */}
-        {user && placesData && (
+        {user && !isLoadingPlaces && placesData && (
           <div className="max-w-4xl mx-auto mt-12">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-2xl font-bold">내 매장 목록</h2>
             </div>
 
-            {(placesData.places.length > 0 || (user && !isLoadingPlaces)) && (
+            {(processedPlacesData.length > 0 ||
+              (user && !isLoadingPlaces && placesData.places.length === 0)) && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {placesData.places.map(place => (
+                {processedPlacesData.map(place => (
                   <PlaceCard key={place.id} place={place} showActions={false} className="w-full" />
                 ))}
-
-                {/* 매장 추가 버튼 카드 */}
-                {user && !isLoadingPlaces && (
-                  <AddPlaceButton
-                    onClick={handleAddPlaceClick}
-                    canAddPlace={
-                      placesData
-                        ? placesData.profile.used_places < placesData.profile.max_places
-                        : true
-                    }
-                    maxPlaces={placesData ? placesData.profile.max_places : 1}
-                    usedPlaces={placesData ? placesData.profile.used_places : 0}
-                  />
-                )}
+                <AddPlaceButton
+                  onClick={handleAddPlaceClick}
+                  canAddPlace={
+                    placesData
+                      ? placesData.profile.used_places < placesData.profile.max_places
+                      : true
+                  }
+                  maxPlaces={placesData ? placesData.profile.max_places : 1}
+                  usedPlaces={placesData ? placesData.profile.used_places : 0}
+                />
               </div>
             )}
+            {user &&
+              !isLoadingPlaces &&
+              placesData &&
+              placesData.places.length === 0 &&
+              processedPlacesData.length === 0 && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <AddPlaceButton
+                    onClick={handleAddPlaceClick}
+                    canAddPlace={placesData.profile.used_places < placesData.profile.max_places}
+                    maxPlaces={placesData.profile.max_places}
+                    usedPlaces={placesData.profile.used_places}
+                  />
+                </div>
+              )}
 
             <div className="mt-6 text-center">
               <button className="btn btn-primary" onClick={() => router.push('/my-places')}>
@@ -304,7 +298,6 @@ export default function Home() {
         )}
       </section>
 
-      {/* 특징 섹션 */}
       <FeatureSection />
     </div>
   );

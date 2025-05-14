@@ -5,12 +5,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
-import {
-  PencilSimple,
-  Trash,
-  ClockCounterClockwise,
-  Warning,
-} from '@phosphor-icons/react';
+import { PencilSimple, Trash, ClockCounterClockwise, Warning } from '@phosphor-icons/react';
 import PlaceCard from '@/components/PlaceCard';
 import AddPlaceButton from '@/components/AddPlaceButton';
 
@@ -108,7 +103,8 @@ export default function MyPlacesPage() {
             }
 
             // 리뷰 정보 추출
-            if (basicInfo) { // basicInfo가 존재함을 이미 place.crawled_data?.basic_info 에서 확인했지만, 명시적으로 한 번 더 체크
+            if (basicInfo) {
+              // basicInfo가 존재함을 이미 place.crawled_data?.basic_info 에서 확인했지만, 명시적으로 한 번 더 체크
               place.blog_reviews_count = basicInfo.blog_review_count || 0;
               place.visitor_reviews_count = basicInfo.visitor_review_count || 0;
             }

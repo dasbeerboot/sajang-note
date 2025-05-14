@@ -157,7 +157,7 @@ export default function LoginModal({ modalId }: LoginModalProps) {
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   placeholder="이메일 주소"
-                  className="input input-bordered w-full"
+                  className="input input-bordered w-full text-base"
                   required
                 />
               </div>
@@ -171,7 +171,7 @@ export default function LoginModal({ modalId }: LoginModalProps) {
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   placeholder="비밀번호"
-                  className="input input-bordered w-full"
+                  className="input input-bordered w-full text-base"
                   required
                 />
               </div>

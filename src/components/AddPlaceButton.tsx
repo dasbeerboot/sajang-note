@@ -42,7 +42,19 @@ export default function AddPlaceButton({
   };
 
   const handleAddPlace = async () => {
-    if (!placeUrl.trim()) return;
+    const trimmedUrl = placeUrl.trim();
+    if (!trimmedUrl) {
+      showToast('URL을 입력해주세요.', 'error');
+      return;
+    }
+
+    if (trimmedUrl.startsWith('https://naver.me/')) {
+      showToast(
+        '단축 URL은 사용할 수 없습니다. ID가 포함된 전체 네이버 플레이스 URL을 입력해주세요. (예: https://m.place.naver.com/restaurant/12345)',
+        'warning'
+      );
+      return;
+    }
 
     try {
       setIsProcessing(true);
@@ -51,7 +63,7 @@ export default function AddPlaceButton({
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ url: placeUrl }),
+        body: JSON.stringify({ url: trimmedUrl }),
       });
 
       const data = await response.json();
@@ -139,8 +151,8 @@ export default function AddPlaceButton({
                 <div className="relative">
                   <input
                     type="text"
-                    placeholder="https://map.naver.com/p/..."
-                    className="input input-bordered w-full pr-10 focus:border-primary"
+                    placeholder="https://m.place.naver.com/restaurant/12345"
+                    className="input input-bordered w-full pr-10 focus:border-primary text-base"
                     value={placeUrl}
                     onChange={e => setPlaceUrl(e.target.value)}
                     disabled={isProcessing}
