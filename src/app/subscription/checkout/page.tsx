@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { CreditCard, CheckCircle, ArrowLeft, Question } from '@phosphor-icons/react';
 import { useAuthModal } from '@/contexts/AuthModalContext';
 import CreditInfoTooltip from '@/components/CreditInfoTooltip';
+import analytics, { Events } from '@/lib/analytics';
 
 interface SubscriptionPlan {
   id: string;
@@ -46,6 +47,15 @@ export default function CheckoutPage() {
   // 크레딧 툴팁 상태
   const [creditInfoOpen, setCreditInfoOpen] = useState(false);
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
+
+  // 페이지 로드 시 이벤트 추적
+  useEffect(() => {
+    // 구독 체크아웃 페이지 방문 이벤트 추적
+    analytics.trackEvent(Events.VIEW_SUBSCRIPTION_PAGE, {
+      page: 'checkout',
+      user_id: user?.id,
+    });
+  }, [user]);
 
   // 구독 플랜 로드
   useEffect(() => {
@@ -135,6 +145,13 @@ export default function CheckoutPage() {
       openAuthModal();
       return;
     }
+    
+    // 카드 등록 시작 이벤트 추적
+    analytics.trackEvent(Events.START_SUBSCRIPTION, {
+      action: 'register_card_start',
+      user_id: user.id,
+    });
+    
     try {
       setProcessingPayment(true);
 
@@ -208,11 +225,26 @@ export default function CheckoutPage() {
         card_number: data.cardNo,
       });
 
+      // 카드 등록 성공 이벤트 추적
+      analytics.trackEvent(Events.START_SUBSCRIPTION, {
+        action: 'register_card_success',
+        user_id: user.id,
+        card_type: data.cardName,
+      });
+
       showToast('카드가 성공적으로 등록되었습니다.', 'success');
     } catch (error: unknown) {
       console.error('카드 등록 오류:', error);
       const message =
         error instanceof Error ? error.message : '카드 등록 중 알 수 없는 오류가 발생했습니다.';
+      
+      // 카드 등록 실패 이벤트 추적
+      analytics.trackEvent(Events.START_SUBSCRIPTION, {
+        action: 'register_card_error',
+        user_id: user.id,
+        error_message: message,
+      });
+      
       showToast(message, 'error');
     } finally {
       setProcessingPayment(false);
@@ -235,6 +267,17 @@ export default function CheckoutPage() {
       showToast('먼저 카드를 등록해주세요.', 'error');
       return;
     }
+
+    // 구독 결제 시작 이벤트 추적
+    const selectedPlanData = plans.find(p => p.id === selectedPlan);
+    analytics.trackEvent(Events.START_SUBSCRIPTION, {
+      action: 'payment_start',
+      user_id: user.id,
+      plan_id: selectedPlan,
+      plan_name: selectedPlanData?.name,
+      plan_price: selectedPlanData?.price,
+      plan_interval: selectedPlanData?.interval,
+    });
 
     try {
       setProcessingPayment(true);
@@ -264,6 +307,15 @@ export default function CheckoutPage() {
         throw new Error(data.message || data.error || '구독 시작에 실패했습니다.');
       }
 
+      // 구독 성공 이벤트 추적
+      analytics.trackEvent(Events.COMPLETE_SUBSCRIPTION, {
+        user_id: user.id,
+        plan_id: selectedPlan,
+        plan_name: selectedPlanData?.name,
+        plan_price: selectedPlanData?.price,
+        plan_interval: selectedPlanData?.interval,
+      });
+
       showToast('구독이 성공적으로 시작되었습니다.', 'success');
 
       // 프로필 페이지로 리디렉션
@@ -272,9 +324,36 @@ export default function CheckoutPage() {
       console.error('구독 시작 오류:', error);
       const message =
         error instanceof Error ? error.message : '구독 시작 중 알 수 없는 오류가 발생했습니다.';
+      
+      // 구독 실패 이벤트 추적
+      analytics.trackEvent(Events.START_SUBSCRIPTION, {
+        action: 'payment_error',
+        user_id: user.id,
+        plan_id: selectedPlan,
+        plan_name: selectedPlanData?.name,
+        error_message: message,
+      });
+      
       showToast(message, 'error');
     } finally {
       setProcessingPayment(false);
+    }
+  };
+
+  // 구독 플랜 선택 이벤트 추적
+  const handlePlanSelect = (planId: string) => {
+    setSelectedPlan(planId);
+    
+    const selectedPlanData = plans.find(p => p.id === planId);
+    if (selectedPlanData) {
+      analytics.trackEvent(Events.VIEW_SUBSCRIPTION_PAGE, {
+        action: 'select_plan',
+        user_id: user?.id,
+        plan_id: planId,
+        plan_name: selectedPlanData.name,
+        plan_price: selectedPlanData.price,
+        plan_interval: selectedPlanData.interval,
+      });
     }
   };
 
@@ -308,7 +387,7 @@ export default function CheckoutPage() {
               className={`card bg-base-100 shadow-md hover:shadow-lg transition-all cursor-pointer ${
                 selectedPlan === plan.id ? 'border-2 border-primary' : 'border border-base-300'
               }`}
-              onClick={() => setSelectedPlan(plan.id)}
+              onClick={() => handlePlanSelect(plan.id)}
             >
               <div className="card-body">
                 <div className="flex justify-between items-center">

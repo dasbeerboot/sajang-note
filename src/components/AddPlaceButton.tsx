@@ -2,6 +2,7 @@ import React from 'react';
 import { Plus } from '@phosphor-icons/react';
 import { useToast } from '@/contexts/ToastContext';
 import { useState, useEffect } from 'react';
+import analytics, { Events } from '@/lib/analytics';
 
 interface AddPlaceButtonProps {
   onClick?: () => void;
@@ -126,6 +127,12 @@ export default function AddPlaceButton({
       return;
     }
 
+    // 매장 추가 시작 이벤트 추적
+    analytics.trackEvent(Events.ADD_PLACE, {
+      url: trimmedUrl,
+      status: 'started',
+    });
+
     try {
       setIsProcessing(true);
       // 처리 시작 시 모달 즉시 닫기
@@ -153,8 +160,28 @@ export default function AddPlaceButton({
           showToast('이미 등록된 매장입니다.', 'info');
         }
 
+        // 이벤트 추적 - 이미 등록된 매장
+        analytics.trackEvent(Events.ADD_PLACE, {
+          url: trimmedUrl,
+          status: 'already_exists',
+          place_id: data.placeId || data.id,
+        });
+
         // 이미 등록된 매장이 있으므로 목록 새로고침
         if (onClick) onClick();
+
+        // 방금 추가한 매장 ID 저장 (상태 확인용)
+        if (data.placeId) {
+          setJustAddedPlaceId(data.placeId);
+          
+          // 이벤트 추적 - 성공적으로 매장 추가됨
+          analytics.trackEvent(Events.ADD_PLACE, {
+            url: trimmedUrl,
+            status: 'success',
+            place_id: data.placeId,
+            place_name: data.place_name || '',
+          });
+        }
       } else {
         // 새로 등록된 매장인 경우
         // API 응답이 성공했지만 Gemini API 오류가 있는 경우 특별 처리
@@ -172,6 +199,14 @@ export default function AddPlaceButton({
           // 방금 추가한 매장 ID 저장 (상태 확인용)
           if (data.placeId) {
             setJustAddedPlaceId(data.placeId);
+            
+            // 이벤트 추적 - 성공적으로 매장 추가됨
+            analytics.trackEvent(Events.ADD_PLACE, {
+              url: trimmedUrl,
+              status: 'success',
+              place_id: data.placeId,
+              place_name: data.place_name || '',
+            });
           }
         }
 
@@ -186,6 +221,13 @@ export default function AddPlaceButton({
         error instanceof Error ? error.message : '매장 등록 중 오류가 발생했습니다',
         'error'
       );
+      
+      // 이벤트 추적 - 매장 추가 실패
+      analytics.trackEvent(Events.ADD_PLACE, {
+        url: trimmedUrl,
+        status: 'error',
+        error_message: error instanceof Error ? error.message : '매장 등록 중 오류가 발생했습니다',
+      });
     } finally {
       setIsProcessing(false);
     }

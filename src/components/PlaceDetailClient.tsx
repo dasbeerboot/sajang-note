@@ -13,6 +13,7 @@ import { useRouter } from 'next/navigation';
 import { useToast } from '@/contexts/ToastContext';
 import { useAuth } from '@/contexts/AuthContext';
 import UserCredits from '@/components/UserCredits';
+import analytics, { Events } from '@/lib/analytics';
 
 interface BasicInfo {
   representative_images?: string[];
@@ -247,6 +248,13 @@ export default function PlaceDetailClient({
   const handleSelectMenu = async (copyType: string) => {
     setActiveMenuId(copyType);
 
+    // 메뉴 선택 이벤트 추적
+    analytics.trackEvent(Events.VIEW_COPY, {
+      copy_type: copyType,
+      place_id: placeData?.id,
+      place_name: placeData?.place_name,
+    });
+
     // 이미 저장된 카피가 있는지 확인
     if (savedMenuIds.includes(copyType)) {
       // 저장된 카피 불러오기
@@ -286,6 +294,16 @@ export default function PlaceDetailClient({
   const handleGenerateCopy = async (userPrompt: string, referenceLinks?: string[]) => {
     setIsGeneratingCopy(true);
     setGeneratedCopy(null);
+
+    // 카피 생성 시작 이벤트 추적
+    analytics.trackEvent(Events.GENERATE_COPY, {
+      copy_type: activeMenuId,
+      place_id: placeData?.id,
+      place_name: placeData?.place_name,
+      has_prompt: !!userPrompt,
+      has_references: referenceLinks ? referenceLinks.length > 0 : false,
+      reference_count: referenceLinks?.length || 0,
+    });
 
     try {
       // 무료 체험 횟수 확인 및 구독 상태 확인
@@ -431,9 +449,27 @@ export default function PlaceDetailClient({
 
           // 로컬 스토리지에도 저장
           localStorage.setItem(`copy_${placeData.id}_${activeMenuId}`, generatedContent);
+          
+          // 카피 생성 완료 이벤트 추적
+          analytics.trackEvent(Events.SAVE_COPY, {
+            copy_type: activeMenuId,
+            place_id: placeData.id,
+            place_name: placeData.place_name,
+            success: true,
+            source: 'edge_function',
+          });
         } else if (placeData && activeMenuId) {
           // Edge Function에서 저장하지 못한 경우 클라이언트에서 저장 시도
           await saveCopy(placeData.id, activeMenuId, userPrompt, generatedContent);
+          
+          // 카피 생성 완료 이벤트 추적
+          analytics.trackEvent(Events.SAVE_COPY, {
+            copy_type: activeMenuId,
+            place_id: placeData.id,
+            place_name: placeData.place_name,
+            success: true,
+            source: 'client',
+          });
         }
 
         // 크레딧 정보 업데이트 (Edge Function에서 남은 크레딧 정보를 받은 경우)
@@ -489,6 +525,14 @@ export default function PlaceDetailClient({
       setGeneratedCopy('예외: ' + (err instanceof Error ? err.message : String(err)));
     } finally {
       setIsGeneratingCopy(false);
+      
+      // 카피 생성 완료/실패 이벤트 추적
+      analytics.trackEvent(Events.GENERATE_COPY, {
+        copy_type: activeMenuId,
+        place_id: placeData?.id,
+        place_name: placeData?.place_name,
+        status: generatedCopy ? 'success' : 'failed',
+      });
     }
   };
 
