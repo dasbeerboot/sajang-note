@@ -8,6 +8,7 @@ import { ThemeProvider } from '@/contexts/ThemeContext';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import LoginModal from '@/components/LoginModal';
+import KakaoChannelChatWrapper from '@/components/KakaoChannelChatWrapper';
 
 // Pretendard 폰트 로드
 const pretendard = localFont({
@@ -101,6 +102,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   <main className="flex-grow">{children}</main>
                   <Footer />
                   <LoginModal modalId="global_login_modal" />
+                  
+                  {/* 카카오톡 채널 채팅 버튼 */}
+                  <KakaoChannelChatWrapper />
                 </div>
               </AuthModalProvider>
             </AuthProvider>
