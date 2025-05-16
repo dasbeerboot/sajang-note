@@ -248,7 +248,7 @@ export async function crawlWithFirecrawl(url: string): Promise<FirecrawlResponse
     formats: ['markdown'],
     onlyMainContent: isNaverBlog, // 네이버 블로그의 경우 본문만 추출
     excludeTags: ['nav', 'footer', 'script', 'style', 'iframe', 'noscript'],
-    waitFor: 3000,
+    waitFor: isNaverBlog ? 500 : 3000,
     timeout: 60000,
   };
 
