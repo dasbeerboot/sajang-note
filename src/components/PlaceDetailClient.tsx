@@ -349,7 +349,6 @@ export default function PlaceDetailClient({
       let formattedReferenceContent = '';
       if (referenceLinks && referenceLinks.length > 0) {
         try {
-          showToast('참고 링크를 크롤링하는 중입니다.', 'info');
           const response = await fetch('/api/crawl-references', {
             method: 'POST',
             headers: {
@@ -373,7 +372,7 @@ export default function PlaceDetailClient({
             // 성공적으로 크롤링한 링크에 대해 알림
             if (crawlData.totalSuccessful > 0) {
               showToast(
-                `${crawlData.totalSuccessful}개의 참고 링크를 성공적으로 크롤링했습니다.`,
+                `${crawlData.totalSuccessful}개의 참고 링크를 성공적으로 읽어왔습니다.`,
                 'success'
               );
             }
@@ -387,11 +386,7 @@ export default function PlaceDetailClient({
             throw new Error(crawlData.error || '크롤링 요청 실패');
           }
         } catch (error) {
-          console.error('참고 링크 크롤링 오류:', error);
-          showToast(
-            `참고 링크를 크롤링하는 중 오류가 발생했습니다: ${error instanceof Error ? error.message : '알 수 없는 오류'}`,
-            'error'
-          );
+          console.error('참고 링크 읽어오기 오류:', error);
         }
       }
 
